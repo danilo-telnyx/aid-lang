@@ -1,0 +1,56 @@
+module main
+
+use std.http
+
+reason classify_ticket(text: string) -> string {
+    goal: "Classify a customer support ticket into a category"
+    constraints: [
+        "Return one of: billing, technical, general, urgent",
+        "If uncertain, prefer general",
+        "Tickets mentioning outage or down are always urgent"
+    ]
+    examples: [
+        ("My card was charged twice", "billing"),
+        ("Server is down", "urgent"),
+        ("How do I reset my password", "technical"),
+        ("What integrations do you support", "general")
+    ]
+    fallback: "general"
+}
+
+reason detect_priority(text: string) -> string {
+    goal: "Detect the priority level of a support ticket"
+    constraints: [
+        "Return one of: low, normal, high, critical",
+        "Mentions of data loss or security are always critical"
+    ]
+    examples: [
+        ("Minor typo in docs", "low"),
+        ("Cannot upload files", "normal"),
+        ("Production API returning 500s", "high"),
+        ("Customer data may be exposed", "critical")
+    ]
+    fallback: "normal"
+}
+
+fn main() {
+    server := http.new(port: 8080)
+
+    server.get("/") => fn(req) -> Response {
+        Response.text("AID Ticket Classifier API")
+    }
+
+    server.get("/health") => fn(req) -> Response {
+        Response.json({ status: "ok", service: "ticket-classifier" })
+    }
+
+    server.post("/classify") => fn(req) -> Response {
+        Response.text("classify endpoint")
+    }
+
+    server.post("/priority") => fn(req) -> Response {
+        Response.text("priority endpoint")
+    }
+
+    server.start()
+}

@@ -427,12 +427,283 @@ fn expr_to_json(expr: &Expression) -> String {
     }
 }
 
-fn generate_http_project(project_name: &str, info: &HttpServerInfo) -> (String, String) {
+// ─── Reason Block Code Generation ───────────────────────────────────────────
+
+struct ReasonBlockInfo {
+    name: String,
+    params: Vec<(String, String)>, // (name, type)
+    return_type: String,
+    goal: String,
+    constraints: Vec<String>,
+    examples: Vec<(String, String)>, // (input_text, output_text)
+    fallback: Option<String>,
+}
+
+fn extract_reason_blocks(program: &Program) -> Vec<ReasonBlockInfo> {
+    let mut blocks = Vec::new();
+    for decl in &program.declarations {
+        if let Declaration::ReasonBlock(rb) = decl {
+            let params: Vec<(String, String)> = rb.params.iter().map(|p| {
+                let ty = match &p.ty {
+                    AidType::String => "string".to_string(),
+                    AidType::Int => "int".to_string(),
+                    AidType::Float => "float".to_string(),
+                    AidType::Bool => "bool".to_string(),
+                    _ => "string".to_string(),
+                };
+                (p.name.clone(), ty)
+            }).collect();
+
+            let return_type = match &rb.return_type {
+                AidType::String => "String".to_string(),
+                AidType::Int => "i64".to_string(),
+                AidType::Float => "f64".to_string(),
+                AidType::Bool => "bool".to_string(),
+                _ => "String".to_string(),
+            };
+
+            let examples: Vec<(String, String)> = rb.examples.iter().filter_map(|ex| {
+                let input = extract_string_literal(&ex.input)?;
+                let output = extract_string_literal(&ex.output)?;
+                Some((input, output))
+            }).collect();
+
+            let fallback = rb.fallback.as_ref().and_then(|f| extract_string_literal(f));
+
+            blocks.push(ReasonBlockInfo {
+                name: rb.name.clone(),
+                params,
+                return_type,
+                goal: rb.goal.clone(),
+                constraints: rb.constraints.clone(),
+                examples,
+                fallback,
+            });
+        }
+    }
+    blocks
+}
+
+fn extract_string_literal(expr: &Expression) -> Option<String> {
+    if let Expression::Literal { value: Literal::String(s), .. } = expr {
+        Some(s.clone())
+    } else {
+        None
+    }
+}
+
+/// Extract keywords from a text string (words >= 3 chars, lowercased, no stop words)
+fn extract_keywords(text: &str) -> Vec<String> {
+    let stop_words = [
+        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "will", "would", "could",
+        "should", "may", "might", "can", "shall", "for", "and", "nor", "but",
+        "or", "yet", "so", "in", "on", "at", "to", "of", "by", "with", "from",
+        "my", "your", "his", "her", "its", "our", "their", "this", "that",
+        "what", "how", "not", "you", "it", "i", "we", "they", "me",
+    ];
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.len() >= 3 && !stop_words.contains(w))
+        .map(|w| w.to_string())
+        .collect()
+}
+
+/// Parse constraint rules like "Tickets mentioning X or Y are always Z"
+fn parse_constraint_rules(constraints: &[String]) -> Vec<(Vec<String>, String)> {
+    let mut rules = Vec::new();
+    for constraint in constraints {
+        let lower = constraint.to_lowercase();
+        // Pattern: "mentioning X or Y are always Z" or "mentions of X or Y are always Z"
+        if let Some(always_idx) = lower.find("always ") {
+            let result_word = lower[always_idx + 7..].trim().to_string();
+            // Extract trigger words between "mentioning/mentions of" and "are always"
+            let trigger_start = if let Some(idx) = lower.find("mentioning ") {
+                Some(idx + 11)
+            } else if let Some(idx) = lower.find("mentions of ") {
+                Some(idx + 12)
+            } else {
+                None
+            };
+            if let Some(start) = trigger_start {
+                if let Some(are_idx) = lower.find(" are always") {
+                    let trigger_text = &lower[start..are_idx];
+                    let keywords: Vec<String> = trigger_text
+                        .split(" or ")
+                        .flat_map(|s| s.split(" and "))
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    if !keywords.is_empty() {
+                        rules.push((keywords, result_word));
+                    }
+                }
+            }
+        }
+    }
+    rules
+}
+
+fn generate_reason_function(block: &ReasonBlockInfo) -> String {
+    let mut code = String::new();
+
+    // Doc comment
+    code.push_str(&format!("/// Reason block: {}\n", block.name));
+    code.push_str(&format!("/// Goal: {}\n", block.goal));
+    for c in &block.constraints {
+        code.push_str(&format!("/// Constraint: {}\n", c));
+    }
+    if !block.examples.is_empty() {
+        code.push_str("/// Examples:\n");
+        for (input, output) in &block.examples {
+            code.push_str(&format!("///   \"{}\" → \"{}\"\n", input, output));
+        }
+    }
+
+    // Function signature
+    let params_str: Vec<String> = block.params.iter().map(|(name, ty)| {
+        match ty.as_str() {
+            "string" => format!("{}: &str", name),
+            "int" => format!("{}: i64", name),
+            "float" => format!("{}: f64", name),
+            "bool" => format!("{}: bool", name),
+            _ => format!("{}: &str", name),
+        }
+    }).collect();
+    code.push_str(&format!("fn {}({}) -> {} {{\n", block.name, params_str.join(", "), block.return_type));
+
+    // Assume first param is the text input
+    let input_param = block.params.first().map(|(n, _)| n.as_str()).unwrap_or("text");
+    code.push_str(&format!("    let text_lower = {}.to_lowercase();\n\n", input_param));
+
+    // 1. Constraint-based rules first (highest priority)
+    let constraint_rules = parse_constraint_rules(&block.constraints);
+    for (keywords, result) in &constraint_rules {
+        let conditions: Vec<String> = keywords.iter()
+            .map(|k| format!("text_lower.contains(\"{}\")", k))
+            .collect();
+        code.push_str(&format!("    // From constraint rule\n"));
+        code.push_str(&format!("    if {} {{\n", conditions.join(" || ")));
+        code.push_str(&format!("        return \"{}\".to_string();\n", result));
+        code.push_str("    }\n\n");
+    }
+
+    // 2. Example-based keyword matching
+    // Group examples by output category
+    let mut categories: Vec<(String, Vec<String>)> = Vec::new();
+    for (input, output) in &block.examples {
+        let keywords = extract_keywords(input);
+        if let Some(existing) = categories.iter_mut().find(|(cat, _)| cat == output) {
+            existing.1.extend(keywords);
+        } else {
+            categories.push((output.clone(), keywords));
+        }
+    }
+
+    // Also add the category name itself as a keyword
+    for (cat, keywords) in &mut categories {
+        if !keywords.contains(cat) {
+            keywords.push(cat.clone());
+        }
+        // Deduplicate
+        keywords.sort();
+        keywords.dedup();
+    }
+
+    // Skip categories that are already handled by constraint rules
+    let constraint_outputs: Vec<&String> = constraint_rules.iter().map(|(_, r)| r).collect();
+
+    for (category, keywords) in &categories {
+        if constraint_outputs.contains(&category) {
+            // Still emit for non-constraint keywords
+            let constraint_kws: Vec<&String> = constraint_rules.iter()
+                .filter(|(_, r)| r == category)
+                .flat_map(|(kws, _)| kws)
+                .collect();
+            let extra_kws: Vec<&String> = keywords.iter()
+                .filter(|k| !constraint_kws.contains(k))
+                .collect();
+            if extra_kws.is_empty() {
+                continue;
+            }
+            let conditions: Vec<String> = extra_kws.iter()
+                .map(|k| format!("text_lower.contains(\"{}\")", k))
+                .collect();
+            code.push_str(&format!("    // From examples — keyword matching for \"{}\"\n", category));
+            code.push_str(&format!("    if {} {{\n", conditions.join(" || ")));
+            code.push_str(&format!("        return \"{}\".to_string();\n", category));
+            code.push_str("    }\n\n");
+        } else {
+            let conditions: Vec<String> = keywords.iter()
+                .map(|k| format!("text_lower.contains(\"{}\")", k))
+                .collect();
+            code.push_str(&format!("    // From examples — keyword matching for \"{}\"\n", category));
+            code.push_str(&format!("    if {} {{\n", conditions.join(" || ")));
+            code.push_str(&format!("        return \"{}\".to_string();\n", category));
+            code.push_str("    }\n\n");
+        }
+    }
+
+    // 3. Fallback
+    let fallback_val = block.fallback.as_deref().unwrap_or("unknown");
+    code.push_str(&format!("    // Fallback\n"));
+    code.push_str(&format!("    \"{}\".to_string()\n", fallback_val));
+    code.push_str("}\n");
+
+    code
+}
+
+/// Try to match a POST route path to a reason block name
+fn reason_block_for_route(path: &str, blocks: &[ReasonBlockInfo]) -> Option<String> {
+    let slug = path.trim_matches('/').replace('-', "_");
+    // Match /classify -> classify_ticket, /priority -> detect_priority
+    for block in blocks {
+        if block.name.contains(&slug) || slug.contains(&block.name) {
+            return Some(block.name.clone());
+        }
+        // Also match partial: /classify -> classify_ticket
+        let name_parts: Vec<&str> = block.name.split('_').collect();
+        if name_parts.iter().any(|p| *p == slug) {
+            return Some(block.name.clone());
+        }
+    }
+    None
+}
+
+fn generate_http_project(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo]) -> (String, String) {
     let mut main_rs = String::new();
     main_rs.push_str("// Generated by the AID compiler — do not edit.\n\n");
-    main_rs.push_str("use axum::{Router, routing, Json, response::IntoResponse};\n\n");
+    main_rs.push_str("use axum::{Router, routing, Json, response::IntoResponse};\n");
+    if !reason_blocks.is_empty() {
+        main_rs.push_str("use serde_json;\n");
+    }
+    main_rs.push_str("\n");
+
+    // Emit reason block functions
+    for block in reason_blocks {
+        main_rs.push_str(&generate_reason_function(block));
+        main_rs.push_str("\n");
+    }
 
     for route in &info.routes {
+        // POST handlers that call reason blocks get special treatment
+        if route.method == "post" {
+            if let Some(reason_name) = reason_block_for_route(&route.path, reason_blocks) {
+                main_rs.push_str(&format!(
+                    "async fn {}(body: String) -> impl IntoResponse {{\n",
+                    route.handler_name
+                ));
+                main_rs.push_str(&format!(
+                    "    let result = {}(&body);\n",
+                    reason_name
+                ));
+                main_rs.push_str(
+                    "    Json(serde_json::json!({\"result\": result})).into_response()\n"
+                );
+                main_rs.push_str("}\n\n");
+                continue;
+            }
+        }
         main_rs.push_str(&format!(
             "async fn {}() -> impl IntoResponse {{\n{}\n}}\n\n",
             route.handler_name, route.handler_code
@@ -539,8 +810,17 @@ fn handle_build(file: Option<PathBuf>, release: bool, no_docs: bool, verbose: bo
         .unwrap_or_else(|| "main".to_string());
     let project_name = format!("aid-{}", file_stem);
 
+    let reason_blocks = extract_reason_blocks(&program);
+    if !reason_blocks.is_empty() {
+        println!(
+            "  {} Reason blocks: {} found",
+            "✓".green().bold(),
+            reason_blocks.len()
+        );
+    }
+
     let (main_rs, cargo_toml) = if let Some(info) = extract_http_server(&program) {
-        generate_http_project(&project_name, &info)
+        generate_http_project(&project_name, &info, &reason_blocks)
     } else {
         println!(
             "  {} Transpile — no supported pattern found in source",

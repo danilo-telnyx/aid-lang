@@ -819,11 +819,9 @@ impl Transpiler {
             .join(", ");
 
         let ret = self.type_to_rust(&r.return_type);
+        let input_param = r.params.first().map(|p| p.name.as_str()).unwrap_or("text");
 
-        self.w.line(&format!(
-            "/// Reason block: {}",
-            r.name
-        ));
+        self.w.line(&format!("/// Reason block: {}", r.name));
         self.w.line(&format!("/// Goal: {}", r.goal));
         for c in &r.constraints {
             self.w.line(&format!("/// Constraint: {}", c));
@@ -833,26 +831,90 @@ impl Transpiler {
             name = r.name,
         ));
         self.w.indent();
-        self.w.line("// TODO: Cortex integration — replace this stub with generated decision logic.");
-        self.w.line(&format!("// Mode: {:?}", r.mode.unwrap_or(ReasonMode::Static)));
+        self.w.line(&format!("let text_lower = {}.to_lowercase();", input_param));
+        self.w.blank();
 
-        if !r.examples.is_empty() {
-            self.w.line("// Examples provided:");
-            for (input, output) in &r.examples {
-                self.w.line(&format!(
-                    "//   {} => {}",
-                    self.expr_to_rust(input),
-                    self.expr_to_rust(output)
-                ));
+        // Parse constraints for "always" rules
+        for c in &r.constraints {
+            let lower = c.to_lowercase();
+            if let Some(always_idx) = lower.find("always ") {
+                let result = lower[always_idx + 7..].trim().to_string();
+                let trigger_start = if let Some(idx) = lower.find("mentioning ") {
+                    Some(idx + 11)
+                } else if let Some(idx) = lower.find("mentions of ") {
+                    Some(idx + 12)
+                } else {
+                    None
+                };
+                if let Some(start) = trigger_start {
+                    if let Some(are_idx) = lower.find(" are always") {
+                        let trigger_text = &lower[start..are_idx];
+                        let keywords: Vec<String> = trigger_text
+                            .split(" or ")
+                            .flat_map(|s| s.split(" and "))
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        if !keywords.is_empty() {
+                            self.w.line(&format!("// Constraint: {}", c));
+                            let conds: Vec<String> = keywords.iter()
+                                .map(|k| format!("text_lower.contains(\"{}\")", k))
+                                .collect();
+                            self.w.line(&format!("if {} {{", conds.join(" || ")));
+                            self.w.indent();
+                            self.w.line(&format!("return \"{}\".to_string();", result));
+                            self.w.dedent();
+                            self.w.line("}");
+                            self.w.blank();
+                        }
+                    }
+                }
             }
         }
 
-        // Emit the fallback value, or a panic.
+        // Example-based keyword matching
+        let stop_words = ["the","a","an","is","are","was","were","be","have","has","had",
+            "do","does","did","will","would","could","should","may","might","can",
+            "for","and","nor","but","or","yet","so","in","on","at","to","of","by",
+            "with","from","my","your","his","her","its","our","their","this","that",
+            "what","how","not","you","it","i","we","they","me"];
+
+        // Group by output
+        let mut categories: Vec<(String, Vec<String>)> = Vec::new();
+        for (input, output) in &r.examples {
+            if let (Expression::StringLiteral(inp), Expression::StringLiteral(out)) = (input, output) {
+                let keywords: Vec<String> = inp.to_lowercase()
+                    .split(|c: char| !c.is_alphanumeric())
+                    .filter(|w| w.len() >= 3 && !stop_words.contains(w))
+                    .map(|w| w.to_string())
+                    .collect();
+                if let Some(existing) = categories.iter_mut().find(|(cat, _)| cat == out) {
+                    existing.1.extend(keywords);
+                } else {
+                    categories.push((out.clone(), keywords));
+                }
+            }
+        }
+
+        for (cat, mut keywords) in categories {
+            keywords.push(cat.clone());
+            keywords.sort();
+            keywords.dedup();
+            let conds: Vec<String> = keywords.iter()
+                .map(|k| format!("text_lower.contains(\"{}\")", k))
+                .collect();
+            self.w.line(&format!("// Keywords for \"{}\"", cat));
+            self.w.line(&format!("if {} {{", conds.join(" || ")));
+            self.w.indent();
+            self.w.line(&format!("return \"{}\".to_string();", cat));
+            self.w.dedent();
+            self.w.line("}");
+            self.w.blank();
+        }
+
+        // Fallback
         if let Some(fallback) = &r.fallback {
-            self.w.line(&format!(
-                "{}",
-                self.expr_to_rust(fallback)
-            ));
+            self.w.line(&format!("{}", self.expr_to_rust(fallback)));
         } else {
             self.w.line("panic!(\"Reason block '{}' has no fallback and Cortex is not yet integrated\")");
         }
@@ -1614,7 +1676,7 @@ mod tests {
         assert!(result.main_rs.contains("#[derive(Debug, Clone, Serialize, Deserialize)]"));
         assert!(result.main_rs.contains("pub fn greet"));
         assert!(result.main_rs.contains("pub fn classify"));
-        assert!(result.main_rs.contains("TODO: Cortex integration"));
+        assert!(result.main_rs.contains("text_lower"));
         assert!(result.main_rs.contains("pub trait UserAPI"));
         assert!(result.cargo_toml.contains("serde"));
         assert!(!result.docs.is_empty());
