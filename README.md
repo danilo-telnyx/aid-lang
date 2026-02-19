@@ -2,6 +2,10 @@
 
 > *Code that thinks. Software that evolves.*
 
+🌐 **Website:** [danilo-telnyx.github.io/aid-lang](https://danilo-telnyx.github.io/aid-lang/)
+📖 **Documentation:** [Wiki](https://github.com/danilo-telnyx/aid-lang/wiki)
+📋 **Roadmap:** [Issues](https://github.com/danilo-telnyx/aid-lang/issues)
+
 AID is a programming language designed to blur the line between writing code and expressing intent. It combines familiar syntax with AI-native constructs — `reason` blocks that generate logic at compile time, `evolve` blocks that improve themselves across builds, and natural-language contracts that compile to type-safe validation. AID transpiles to Rust and targets native binaries and WebAssembly.
 
 ## Hello World
