@@ -1,7 +1,16 @@
-/build/
-/compiler/target/
-/compiler/build/
-.cortex/
-*.wasm
-.DS_Store
+# Build outputs
+build/
 target/
+*.o
+*.so
+*.dylib
+
+# Rust generated projects
+build/rust-gen/
+Cargo.lock
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
