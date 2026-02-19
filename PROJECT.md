@@ -16,7 +16,7 @@
 1. **`reason` blocks are explicit** — developer opts in, no magic
 2. **Target audience:** Solo devs & small enterprise building APIs fast
 3. **Cortex is local-only** — no cloud, no network. Privacy by architecture.
-4. **Compile to WASM** (via Rust transpilation) — currently native binary, WASM planned
+4. **Compile to WASM** (via Rust transpilation) — native binary + WASM output (`--target wasm`)
 5. **Auto-docs at every build** — documentation is a compiler output
 6. **Immutable by default** — `mut` to opt into mutability
 7. **Go's simplicity + Rust's safety** — easy to read, hard to break
@@ -43,7 +43,8 @@
 │   ├── tickets.aid                      # Reason blocks + evolve telemetry
 │   ├── full-demo.aid                    # All language features combined
 │   ├── contracts.aid                    # Contract validation demo
-│   └── intent.aid                       # Intent routing demo
+│   ├── intent.aid                       # Intent routing demo
+│   └── wasm-module.aid                  # WASM compilation target
 ├── poc/transpile.mjs                    # PoC transpiler (Node.js, keep for reference)
 ├── aid                                  # PoC CLI wrapper (bash)
 ├── compiler/                            # ⭐ Real compiler (Rust)
@@ -74,7 +75,8 @@
 - Auto-docs generated at every build
 - Full CLI: build, run, clean, docs, fmt, lint, cortex, rollback, evolve
 - Intent routing: compiler auto-discovers handlers by naming convention, builds route tables, /api/routes endpoint
-- 5 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid
+- WASM compilation: `aid build --target wasm` → wasm32-wasip1 binaries
+- 6 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid
 
 ## How to Build & Test
 
@@ -102,13 +104,13 @@ cargo build --release
 |---|-------|--------|--------|-------|
 | 1 | Reason block transpilation | ✅ Done | — | V1 keyword matching from examples/constraints |
 | 2 | Evolve block telemetry | ✅ Done | — | JSONL logging + /telemetry endpoint |
-| 3 | WASM compilation target | ⬜ Open | 2 days | Switch from native to wasm32-wasi |
+| 3 | WASM compilation target | ✅ Done | — | `--target wasm` → wasm32-wasip1 output |
 | 4 | Contract validation generation | ✅ Done | — | English rules → type-safe validators, /validate endpoint |
 | 5 | Intent routing | ✅ Done | — | Auto-discover handlers, build route tables, /api/routes endpoint |
 | 6 | Project website | ✅ Done | — | GitHub Pages site live |
 | 7 | Expand parser to full grammar | ✅ Done | — | Entities, methods, match, loops, try, async, contracts, implements |
 
-**Recommended next:** #7 (parser) → #4 (contracts) → #5 (intent) → #3 (WASM) → #6 (website)
+**🎉 v0.1.0 COMPLETE — All 7 roadmap issues implemented!**
 
 ## Future Roadmap (Beyond Issues)
 
@@ -134,5 +136,5 @@ cargo build --release
 
 - 2026-02-18: Language concept & spec created
 - 2026-02-19: PoC working, real compiler built, reason blocks, evolve telemetry, contracts, full parser, website, GitHub repo
-- 2026-02-19: v0.1.0-alpha tagged — first working compiler release
+- 2026-02-19: v0.1.0 released — all 7 roadmap features complete
 - 2030-02-19: BSL license converts to Apache 2.0 (Change Date)

@@ -24,7 +24,7 @@
 | Contracts | ✅ | ✅ V1 | English rules → validators |
 | HTTP server | ✅ | ✅ | Via Axum |
 | Auto-docs | ✅ | ✅ | Basic generation |
-| WASM target | ✅ | ⬜ | Native binary only |
+| WASM target | ✅ | ✅ | `--target wasm` → wasm32-wasip1 |
 | Cortex engine | ✅ | ⬜ | V1 uses keyword matching |
 
 ---

@@ -3,7 +3,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/danilo-telnyx/aid-lang/releases)
 [![License](https://img.shields.io/badge/license-BSL%201.1-green.svg)](LICENSE.md)
 [![Rust](https://img.shields.io/badge/compiler-Rust%201.93-orange.svg)](https://www.rust-lang.org/)
-[![Status](https://img.shields.io/badge/status-alpha-yellow.svg)](https://github.com/danilo-telnyx/aid-lang/issues)
+[![Status](https://img.shields.io/badge/status-v0.1.0-brightgreen.svg)](https://github.com/danilo-telnyx/aid-lang/releases/tag/v0.1.0)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20WASM-lightgrey.svg)](#)
 
 > *Code that thinks. Software that evolves.*
@@ -17,7 +17,7 @@
 
 AID is a statically typed, compiled programming language with **embedded AI reasoning**. Write decision logic in natural language, and the compiler generates optimized code. Your software gets smarter with every deploy.
 
-AID transpiles to Rust and compiles to native binaries (WASM planned). No cloud APIs. No ML infrastructure. Intelligence is a language feature.
+AID transpiles to Rust and compiles to native binaries or WASM. No cloud APIs. No ML infrastructure. Intelligence is a language feature.
 
 ---
 
@@ -136,7 +136,7 @@ The compiler reads the English rules and generates type-safe validators. No boil
 | 📜 **Contracts** | English rules → type-safe validators | ✅ Working |
 | 📄 **Auto-Documentation** | Docs generated at every build | ✅ Working |
 | 🎯 **Intent Routing** | Compiler discovers handlers, builds route tables | ✅ Working |
-| ⚡ **WASM Target** | Compile to WebAssembly, deploy anywhere | 🔜 Planned |
+| ⚡ **WASM Target** | Compile to WebAssembly, deploy anywhere | ✅ Working |
 | 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
 
 ---
@@ -225,6 +225,7 @@ cd compiler && cargo build --release
 | Full Demo | Entities, contracts, async, pattern matching, loops | [`examples/full-demo.aid`](examples/full-demo.aid) |
 | Contract Validation | Natural language validation rules | [`examples/contracts.aid`](examples/contracts.aid) |
 | Intent Routing | Auto-discovered routes, /api/routes endpoint | [`examples/intent.aid`](examples/intent.aid) |
+| WASM Module | WASM compilation target | [`examples/wasm-module.aid`](examples/wasm-module.aid) |
 
 ---
 
@@ -238,7 +239,7 @@ cd compiler && cargo build --release
 | Auto-documentation | ✅ | ❌ | ✅ | ❌ |
 | Type safety | ✅ | ✅ | ✅ | ❌ |
 | HTTP built-in | ✅ | ✅ | ❌ | ❌ |
-| WASM target | 🔜 | 🟡 | ✅ | ❌ |
+| WASM target | ✅ | 🟡 | ✅ | ❌ |
 
 ---
 
@@ -259,7 +260,7 @@ See [LICENSE.md](LICENSE.md) for full terms.
 - **Owner:** [@danilo-telnyx](https://github.com/danilo-telnyx)
 - **Language:** Compiler written in Rust
 - **Created:** February 2026
-- **Status:** Alpha (v0.1.0)
+- **Status:** v0.1.0 (First Complete Release)
 
 ---
 

@@ -1,0 +1,19 @@
+module classifier
+
+reason classify_ticket(text: string) -> string {
+    goal: "Classify a support ticket"
+    constraints: [
+        "Return one of: billing, technical, general, urgent",
+        "Tickets mentioning outage or down are always urgent"
+    ]
+    examples: [
+        ("My card was charged twice", "billing"),
+        ("Server is down", "urgent"),
+        ("How do I reset my password", "technical")
+    ]
+    fallback: "general"
+}
+
+fn greet(name: string) -> string {
+    return "Hello, " + name + " from AID WASM!"
+}

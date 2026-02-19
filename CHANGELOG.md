@@ -1,26 +1,43 @@
 # Changelog
 
-## v0.1.0-alpha — 2026-02-19
+## v0.1.0 — 2026-02-19
 
-### Added
-- Language specification v1.0 (25 sections)
-- Rust compiler with pest parser (~5,000 lines)
-- Reason blocks: AI-powered decision functions (V1 keyword matching)
-- Evolve blocks: runtime telemetry logging and /telemetry endpoint
-- Contract validation: natural language rules → type-safe validators
-- Full parser: entities, async, pattern matching, loops, error handling
-- CLI: build, run, clean, docs, fmt, lint, cortex, rollback, evolve
-- Auto-documentation generated at every build
-- std.http → Axum mapping with routes, middleware, JSON support
-- GitHub Wiki with 19 documentation pages
+### 🎉 Initial Release — All Roadmap Features Complete
+
+#### Core Language
+- Full parser: entities, functions, async, pattern matching, loops, error handling
+- Strong static type system with inference
+- Immutable by default, Go simplicity + Rust safety
+- Modules and imports
+
+#### AI Features
+- **Reason Blocks**: AI-powered decision functions (V1 keyword matching)
+- **Evolve Blocks**: Runtime telemetry, /telemetry endpoint, self-improving code
+- **Contract Validation**: English rules → type-safe validators, /validate endpoint
+- **Intent Routing**: Auto-discover handlers, build route tables, /api/routes endpoint
+
+#### Compiler
+- Rust compiler with pest parser (~5,000+ lines)
+- AID → Rust/Axum transpilation
+- Native binary output (macOS/Linux)
+- WASM output (`--target wasm` → wasm32-wasip1)
+- Auto-documentation at every build
+
+#### CLI
+- `aid build` (with `--target native|wasm`, `--release`)
+- `aid run`, `aid clean`, `aid docs`
+- `aid fmt`, `aid lint`, `aid test`
+- `aid cortex status`, `aid rollback`, `aid evolve`
+
+#### Examples
+- hello.aid — Hello world HTTP server
+- tickets.aid — Ticket classifier with reason + evolve
+- contracts.aid — Natural language validation
+- intent.aid — Auto-discovered routing (7 routes, zero config)
+- full-demo.aid — All language features combined
+- wasm-module.aid — WASM compilation target
+
+#### Project
+- BSL 1.1 license with commercial revenue share
+- GitHub Wiki (19 documentation pages)
 - Project website (GitHub Pages)
-- Intent routing: compiler auto-discovers handlers, builds route tables, /api/routes endpoint
-- 5 working examples: hello, tickets, full-demo, contracts, intent
-- BSL 1.1 license with commercial revenue share terms
-
-### Architecture
-- Parser: pest PEG grammar
-- AST: Full type definitions for all AID constructs
-- Transpiler: AST → Rust/Axum code generation
-- Codegen: HTTP mapping, reason block keyword extraction, contract rule parsing
-- Target: Native binary (WASM planned)
