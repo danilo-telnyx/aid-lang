@@ -1,0 +1,179 @@
+module main
+
+use std.http
+use std.json
+
+/// Constants for configuration
+const MAX_RETRIES = 3
+const API_VERSION = "v1"
+const DEFAULT_PORT = 8080
+
+/// Type aliases
+type UserID = int
+type Headers = map<string, string>
+type Handler = fn(Request) -> Response
+
+/// User entity with fields, defaults, and methods
+entity User {
+    id: int
+    name: string
+    email: string
+    role: string = "viewer"
+
+    fn full_info() -> string => name + " (" + email + ")"
+
+    fn is_admin() -> bool => role == "admin"
+}
+
+/// Address entity
+entity Address {
+    street: string
+    city: string
+    country: string = "US"
+}
+
+/// Error entity
+entity ApiError {
+    code: int
+    message: string
+    details: option<string> = None
+}
+
+/// Contract with validation rules
+contract UserAPI {
+    "User ID must be positive"
+    "Email must be valid"
+    "Name must be between 2 and 100 characters"
+
+    fn create(user: User) -> result<User, ApiError>
+    fn get(id: int) -> option<User>
+    fn delete(id: int) -> result<bool, ApiError>
+}
+
+/// Implement the contract
+implement UserAPI {
+    fn create(user: User) -> result<User, ApiError> {
+        return Ok(user)
+    }
+
+    fn get(id: int) -> option<User> {
+        return None
+    }
+
+    fn delete(id: int) -> result<bool, ApiError> {
+        return Ok(true)
+    }
+}
+
+/// Function with multiple return values
+fn divide(a: float, b: float) -> (float, bool) {
+    if b == 0.0 {
+        return (0.0, false)
+    }
+    return (a / b, true)
+}
+
+/// Async function
+async fn fetch_data(url: string) -> result<string, ApiError> {
+    response := await http.get(url)
+    return Ok(response.body)
+}
+
+/// Function demonstrating pattern matching
+fn handle_status(status_code: int) -> string {
+    message := match status_code {
+        200 => "OK"
+        201 => "Created"
+        401 | 403 => "Unauthorized"
+        404 => "Not Found"
+        500..599 => "Server Error"
+        _ => "Unknown"
+    }
+    return message
+}
+
+/// Function with loops
+fn process_users(users: array<User>) -> int {
+    mut count := 0
+    for user in users {
+        if user.role == "admin" {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+/// Function with while loop
+fn retry_connect(max: int) -> bool {
+    mut attempts := 0
+    while attempts < max {
+        attempts = attempts + 1
+    }
+    return true
+}
+
+/// Function with for-in with index destructuring
+fn log_users(users: array<User>) -> int {
+    mut total := 0
+    for (i, user) in users.enumerate() {
+        total = total + 1
+    }
+    return total
+}
+
+/// Function with error handling
+fn load_config(path: string) -> result<string, ApiError> {
+    content := try read_file(path)
+    return Ok(content)
+}
+
+/// Function with typed variables
+fn demo_types() -> string {
+    name: string = "AID"
+    tags: array<string> = ["api", "fast"]
+    config: map<string, int> = { "port": 8080 }
+    active: bool = true
+    return name
+}
+
+/// Reason block for AI classification
+reason classify_request(text: string) -> string {
+    goal: "Classify incoming API request"
+    constraints: [
+        "Return one of: query, mutation, subscription",
+        "Requests mentioning delete or remove are always mutation"
+    ]
+    examples: [
+        ("get all users", "query"),
+        ("delete user 42", "mutation"),
+        ("watch for changes", "subscription")
+    ]
+    fallback: "query"
+}
+
+/// Evolve block
+evolve classify_request {
+    track: true
+    retrain_every: 500
+    min_accuracy: 0.95
+    approve: true
+}
+
+/// Main function with server
+fn main() {
+    server := http.new(port: 8080)
+
+    server.get("/") => fn(req) -> Response {
+        Response.text("AID Full Demo API")
+    }
+
+    server.get("/health") => fn(req) -> Response {
+        Response.json({ status: "ok", version: "1.0" })
+    }
+
+    server.post("/classify") => fn(req) -> Response {
+        Response.text("classified")
+    }
+
+    server.start()
+}

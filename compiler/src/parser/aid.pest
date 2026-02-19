@@ -290,6 +290,8 @@ argument = {
 primary_expr = {
     "(" ~ expression ~ ("," ~ expression)+ ~ ")"   // tuple expr
   | "(" ~ expression ~ ")"                         // grouped
+  | match_expr
+  | if_expr
   | lambda_expr
   | entity_instantiation
   | map_literal
@@ -302,6 +304,14 @@ primary_expr = {
   | "break"
   | "continue"
   | ident
+}
+
+match_expr = {
+    "match" ~ expression ~ "{" ~ match_arm+ ~ "}"
+}
+
+if_expr = {
+    "if" ~ expression ~ block ~ "else" ~ (if_expr | block)
 }
 
 // ---------------------------------------------------------------------------

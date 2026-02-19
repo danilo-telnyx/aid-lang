@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AID — Auto-Intelligent Development Language</title>
+  <meta name="description" content="AID: A statically typed, compiled language with embedded AI reasoning. Code that thinks. Software that evolves.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="container">
+    <a href="#" class="logo">AID</a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#getting-started">Get Started</a>
+      <a href="#">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container fade-in">
+    <h1>AID</h1>
+    <p class="tagline">Code that thinks. Software that evolves.</p>
+    <p class="desc">A statically typed, compiled language with embedded AI reasoning. Declare intelligent decisions in your source code — the compiler handles the rest.</p>
+    <div class="cta">
+      <a href="#getting-started" class="btn btn-primary">Get Started</a>
+      <a href="#" class="btn btn-secondary">View on GitHub →</a>
+    </div>
+  </div>
+</section>
+
+<!-- Code Examples -->
+<section id="code-examples">
+  <div class="container fade-in">
+    <h2>See it in action</h2>
+    <p class="section-sub">Clean syntax inspired by Go's simplicity and Rust's safety — with AI reasoning built in.</p>
+    <div class="code-tabs">
+      <button class="code-tab active" data-tab="hello">hello.aid</button>
+      <button class="code-tab" data-tab="tickets">tickets.aid</button>
+    </div>
+    <pre class="code-block active" id="tab-hello"><code><span class="kw">module</span> main
+
+<span class="kw">use</span> std.http
+
+<span class="kw">fn</span> <span class="fn-name">main</span>() {
+    server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)
+
+    server.<span class="fn-name">get</span>(<span class="str">"/"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        Response.<span class="fn-name">text</span>(<span class="str">"Hello from AID"</span>)
+    }
+
+    server.<span class="fn-name">get</span>(<span class="str">"/health"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        Response.<span class="fn-name">json</span>({ status: <span class="str">"ok"</span>, language: <span class="str">"AID"</span>, version: <span class="str">"0.1.0"</span> })
+    }
+
+    server.<span class="fn-name">start</span>()
+}</code></pre>
+    <pre class="code-block" id="tab-tickets"><code><span class="kw">module</span> main
+
+<span class="kw">use</span> std.http
+
+<span class="ai">reason</span> <span class="fn-name">classify_ticket</span>(text: <span class="type">string</span>) <span class="op">-></span> <span class="type">string</span> {
+    <span class="ai">goal</span>: <span class="str">"Classify a customer support ticket into a category"</span>
+    <span class="ai">constraints</span>: [
+        <span class="str">"Return one of: billing, technical, general, urgent"</span>,
+        <span class="str">"If uncertain, prefer general"</span>,
+        <span class="str">"Tickets mentioning outage or down are always urgent"</span>
+    ]
+    <span class="ai">examples</span>: [
+        (<span class="str">"My card was charged twice"</span>, <span class="str">"billing"</span>),
+        (<span class="str">"Server is down"</span>, <span class="str">"urgent"</span>),
+        (<span class="str">"How do I reset my password"</span>, <span class="str">"technical"</span>),
+        (<span class="str">"What integrations do you support"</span>, <span class="str">"general"</span>)
+    ]
+    <span class="ai">fallback</span>: <span class="str">"general"</span>
+}
+
+<span class="ai">evolve</span> classify_ticket {
+    <span class="ai">track</span>: <span class="kw">true</span>
+    <span class="ai">retrain_every</span>: <span class="num">500</span>
+    <span class="ai">min_accuracy</span>: <span class="num">0.95</span>
+    <span class="ai">approve</span>: <span class="kw">true</span>
+}
+
+<span class="kw">fn</span> <span class="fn-name">main</span>() {
+    server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)
+
+    server.<span class="fn-name">post</span>(<span class="str">"/classify"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        result <span class="op">:=</span> <span class="fn-name">classify_ticket</span>(req.body)
+        Response.<span class="fn-name">json</span>({ category: result })
+    }
+
+    server.<span class="fn-name">start</span>()
+}</code></pre>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container fade-in">
+    <h2>Built different</h2>
+    <p class="section-sub">Six features that don't exist in any other language.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="icon">🧠</div>
+        <h3>Reason Blocks</h3>
+        <p>Declare AI-powered decisions in your code. Define the goal, set constraints, provide examples — the compiler generates the logic.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🧬</div>
+        <h3>Evolve</h3>
+        <p>Your code improves itself. Runtime telemetry feeds back into the next build. Every deploy gets smarter.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🎯</div>
+        <h3>Intent Routing</h3>
+        <p>Stop writing route tables. The compiler analyzes your handlers and builds routes at compile time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📜</div>
+        <h3>Contracts</h3>
+        <p>Describe validation rules in English. The compiler generates type-safe validators automatically.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📄</div>
+        <h3>Auto-Documentation</h3>
+        <p>Every build generates complete docs. If the code changes, the docs change. They can never drift.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⚡</div>
+        <h3>WASM Target</h3>
+        <p>Compile to WebAssembly. Write once, deploy anywhere — edge, cloud, browser.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section id="how-it-works">
+  <div class="container fade-in">
+    <h2>How it works</h2>
+    <p class="section-sub">From source to binary in one command. The Cortex Engine handles AI reasoning at compile time.</p>
+    <div class="pipeline">
+      <div class="pipeline-step">.aid source</div>
+      <span class="pipeline-arrow">→</span>
+      <div class="pipeline-step">Parser</div>
+      <span class="pipeline-arrow">→</span>
+      <div class="pipeline-step highlight">Cortex Engine</div>
+      <span class="pipeline-arrow">→</span>
+      <div class="pipeline-step">Transpiler</div>
+      <span class="pipeline-arrow">→</span>
+      <div class="pipeline-step">Rust</div>
+      <span class="pipeline-arrow">→</span>
+      <div class="pipeline-branch">
+        <div class="pipeline-step">WASM Binary</div>
+        <div class="pipeline-step">Auto-Docs</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Reason Block Detailed -->
+<section id="reason-detail">
+  <div class="container fade-in">
+    <h2>The <code style="color:var(--gold)">reason</code> block</h2>
+    <p class="section-sub">Declare what you want. The compiler figures out how.</p>
+    <div class="reason-grid">
+      <div>
+        <span class="reason-label">You write</span>
+        <pre class="code-block active" style="display:block;border-radius:8px"><code><span class="ai">reason</span> <span class="fn-name">classify_ticket</span>(text: <span class="type">string</span>) <span class="op">-></span> <span class="type">string</span> {
+    <span class="ai">goal</span>: <span class="str">"Classify support tickets"</span>
+    <span class="ai">constraints</span>: [
+        <span class="str">"Return: billing, technical, general, urgent"</span>,
+        <span class="str">"Outage or down → always urgent"</span>
+    ]
+    <span class="ai">examples</span>: [
+        (<span class="str">"Card charged twice"</span>, <span class="str">"billing"</span>),
+        (<span class="str">"Server is down"</span>, <span class="str">"urgent"</span>)
+    ]
+    <span class="ai">fallback</span>: <span class="str">"general"</span>
+}</code></pre>
+      </div>
+      <div>
+        <span class="reason-label">Compiler generates</span>
+        <pre class="code-block active" style="display:block;border-radius:8px"><code><span class="cmt">// Optimized keyword-matching function</span>
+<span class="kw">fn</span> <span class="fn-name">classify_ticket</span>(text: &amp;str) -> String {
+    <span class="kw">let</span> lower = text.to_lowercase();
+
+    <span class="cmt">// From constraints</span>
+    <span class="kw">if</span> lower.contains(<span class="str">"outage"</span>)
+       || lower.contains(<span class="str">"down"</span>) {
+        <span class="kw">return</span> <span class="str">"urgent"</span>.into();
+    }
+
+    <span class="cmt">// From examples → keyword extraction</span>
+    <span class="kw">if</span> lower.contains(<span class="str">"card"</span>)
+       || lower.contains(<span class="str">"charged"</span>) {
+        <span class="kw">return</span> <span class="str">"billing"</span>.into();
+    }
+
+    <span class="str">"general"</span>.into() <span class="cmt">// fallback</span>
+}</code></pre>
+      </div>
+    </div>
+    <div class="reason-note">
+      <strong>Today:</strong> smart keyword matching extracted from your examples and constraints.<br>
+      <strong>Tomorrow:</strong> local AI model (Cortex V1). <em>Your code stays exactly the same.</em>
+    </div>
+  </div>
+</section>
+
+<!-- Getting Started -->
+<section id="getting-started">
+  <div class="container fade-in">
+    <h2>Get started</h2>
+    <p class="section-sub">Up and running in 30 seconds.</p>
+    <div class="install-block">
+      <div><span class="prompt">$</span> <span class="cmd">curl -sSf https://install.aidlang.dev | sh</span></div>
+      <div style="margin-top:16px"><span class="prompt">$</span> <span class="cmd">aid new my-api</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">aid build</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">aid run</span></div>
+      <div style="margin-top:12px"><span class="cmt"># → Server running on http://localhost:8080</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Comparison -->
+<section id="comparison">
+  <div class="container fade-in">
+    <h2>How AID compares</h2>
+    <p class="section-sub">AID isn't replacing these languages — it's adding what they can't do.</p>
+    <div class="table-wrap">
+      <table class="comparison-table">
+        <thead>
+          <tr><th>Feature</th><th style="color:var(--accent)">AID</th><th>Go</th><th>Rust</th><th>Python</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>AI reasoning built-in</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Self-improving code</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Auto-documentation</td><td>✅</td><td>❌</td><td>✅</td><td>❌</td></tr>
+          <tr><td>Type safety</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+          <tr><td>WASM target</td><td>✅</td><td>🟡</td><td>✅</td><td>❌</td></tr>
+          <tr><td>HTTP built-in</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- License -->
+<section id="license">
+  <div class="container fade-in">
+    <h2>License</h2>
+    <div class="license-box">
+      <h3>Business Source License 1.1</h3>
+      <ul>
+        <li>Free for personal use</li>
+        <li>Free for open source projects</li>
+        <li>Free for internal company use</li>
+        <li>Commercial license for revenue-generating products</li>
+        <li>Converts to Apache 2.0 on Feb 19, 2030</li>
+      </ul>
+      <p style="margin-top:16px"><a href="#">Read COMMERCIAL.md →</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="#">GitHub</a>
+      <a href="#">Documentation</a>
+      <a href="#">License</a>
+    </div>
+    <p class="credit">Built by Danilo Smaldone</p>
+    <p>AID — Auto-Intelligent Development Language © 2026</p>
+  </div>
+</footer>
+
+<!-- JS: tabs + scroll animations -->
+<script>
+// Code tabs
+document.querySelectorAll('.code-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#code-examples .code-block').forEach(b => b.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// Scroll fade-in
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

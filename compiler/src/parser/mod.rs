@@ -1001,6 +1001,45 @@ fn parse_primary_expr(pair: Pair) -> Result<Expression, ParseError> {
                 span,
             })
         }
+        Rule::match_expr => {
+            let mut parts = inner.into_inner();
+            let subject = parse_expression(parts.next().unwrap())?;
+            let mut arms = Vec::new();
+            for arm_pair in parts {
+                if arm_pair.as_rule() == Rule::match_arm {
+                    arms.push(parse_match_arm(arm_pair)?);
+                }
+            }
+            Ok(Expression::MatchExpr {
+                subject: Box::new(subject),
+                arms,
+                span,
+            })
+        }
+        Rule::if_expr => {
+            let mut parts = inner.into_inner();
+            let condition = parse_expression(parts.next().unwrap())?;
+            let then_block = parse_block(parts.next().unwrap())?;
+            let else_pair = parts.next().unwrap();
+            let else_block = match else_pair.as_rule() {
+                Rule::if_expr => {
+                    // Nested if_expr - wrap as expression statement
+                    let nested = parse_primary_expr(else_pair)?;
+                    vec![Statement::Expression { expr: nested, span: span.clone() }]
+                }
+                Rule::block => parse_block(else_pair)?,
+                _ => vec![],
+            };
+            // Convert blocks to expressions (use last statement)
+            let then_expr = block_to_expr(then_body_to_expr(&then_block), &span);
+            let else_expr = block_to_expr(then_body_to_expr(&else_block), &span);
+            Ok(Expression::IfExpr {
+                condition: Box::new(condition),
+                then_expr: Box::new(then_expr),
+                else_expr: Box::new(else_expr),
+                span,
+            })
+        }
         Rule::literal => {
             let lit = parse_literal_value(inner)?;
             Ok(Expression::Literal { value: lit, span })
@@ -1020,6 +1059,18 @@ fn parse_primary_expr(pair: Pair) -> Result<Expression, ParseError> {
             span,
         }),
     }
+}
+
+fn then_body_to_expr(stmts: &[Statement]) -> Option<Expression> {
+    stmts.last().and_then(|s| match s {
+        Statement::Expression { expr, .. } => Some(expr.clone()),
+        Statement::Return { value: Some(v), .. } => Some(v.clone()),
+        _ => None,
+    })
+}
+
+fn block_to_expr(expr: Option<Expression>, span: &Span) -> Expression {
+    expr.unwrap_or(Expression::Literal { value: Literal::None, span: span.clone() })
 }
 
 fn parse_lambda(pair: Pair) -> Result<Expression, ParseError> {
