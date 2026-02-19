@@ -29,7 +29,7 @@
 | ⭐ 1 | `reason` blocks | ✅ V1 done | Declarative AI functions with goal/constraints/examples/fallback |
 | ⭐ 2 | `evolve` blocks | ✅ V1 done | Self-improving code — runtime telemetry feeds next build |
 | ⭐ 3 | `intent` routing | ⬜ Planned | AI-native HTTP routing — Cortex builds route tables at compile time |
-| ⭐ 4 | `contract` validation | ⬜ Planned | Natural language rules → type-safe validators |
+| ⭐ 4 | `contract` validation | ✅ V1 done | Natural language rules → type-safe validators, /validate endpoint |
 | ⭐ 5 | Auto-documentation | ✅ Basic | Generated at every build, includes reason block explanations |
 
 ## Project Structure
@@ -40,7 +40,9 @@
 ├── spec/v0.1-syntax.md                  # Original syntax draft
 ├── examples/
 │   ├── hello.aid                        # Hello world (text + JSON routes)
-│   └── tickets.aid                      # Reason blocks + evolve telemetry
+│   ├── tickets.aid                      # Reason blocks + evolve telemetry
+│   ├── full-demo.aid                    # All language features combined
+│   └── contracts.aid                    # Contract validation demo
 ├── poc/transpile.mjs                    # PoC transpiler (Node.js, keep for reference)
 ├── aid                                  # PoC CLI wrapper (bash)
 ├── compiler/                            # ⭐ Real compiler (Rust)
@@ -67,8 +69,10 @@
 - `reason` blocks → keyword-matching V1 (extracts keywords from examples, parses constraints for rules)
 - `evolve` blocks → runtime telemetry logging to `.cortex/telemetry/*.jsonl`
 - `GET /telemetry` → live stats (call counts + output distribution)
+- `contract` blocks → English rules parsed into type-safe validators, /validate endpoint
 - Auto-docs generated at every build
 - Full CLI: build, run, clean, docs, fmt, lint, cortex, rollback, evolve
+- 4 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid
 
 ## How to Build & Test
 
@@ -97,10 +101,10 @@ cargo build --release
 | 1 | Reason block transpilation | ✅ Done | — | V1 keyword matching from examples/constraints |
 | 2 | Evolve block telemetry | ✅ Done | — | JSONL logging + /telemetry endpoint |
 | 3 | WASM compilation target | ⬜ Open | 2 days | Switch from native to wasm32-wasi |
-| 4 | Contract validation generation | ⬜ Open | 2 days | English rules → type-safe validators |
+| 4 | Contract validation generation | ✅ Done | — | English rules → type-safe validators, /validate endpoint |
 | 5 | Intent routing | ⬜ Open | 2 days | Auto-discover handlers, build route tables |
-| 6 | Project website | ⬜ Open | 1-2 days | Static site first, then rebuild in AID |
-| 7 | Expand parser to full grammar | ⬜ Open | 3-4 days | Entities, methods, match, loops, try, async |
+| 6 | Project website | ✅ Done | — | GitHub Pages site live |
+| 7 | Expand parser to full grammar | ✅ Done | — | Entities, methods, match, loops, try, async, contracts, implements |
 
 **Recommended next:** #7 (parser) → #4 (contracts) → #5 (intent) → #3 (WASM) → #6 (website)
 
@@ -127,5 +131,6 @@ cargo build --release
 ## Key Dates
 
 - 2026-02-18: Language concept & spec created
-- 2026-02-19: PoC working, real compiler built, reason blocks, evolve telemetry, GitHub repo
+- 2026-02-19: PoC working, real compiler built, reason blocks, evolve telemetry, contracts, full parser, website, GitHub repo
+- 2026-02-19: v0.1.0-alpha tagged — first working compiler release
 - 2030-02-19: BSL license converts to Apache 2.0 (Change Date)

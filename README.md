@@ -1,12 +1,25 @@
 # AID — Auto-Intelligent Development Language
 
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/danilo-telnyx/aid-lang/releases)
+[![License](https://img.shields.io/badge/license-BSL%201.1-green.svg)](LICENSE.md)
+[![Rust](https://img.shields.io/badge/compiler-Rust%201.93-orange.svg)](https://www.rust-lang.org/)
+[![Status](https://img.shields.io/badge/status-alpha-yellow.svg)](https://github.com/danilo-telnyx/aid-lang/issues)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20WASM-lightgrey.svg)](#)
+
 > *Code that thinks. Software that evolves.*
 
 🌐 **Website:** [danilo-telnyx.github.io/aid-lang](https://danilo-telnyx.github.io/aid-lang/)
 📖 **Documentation:** [Wiki](https://github.com/danilo-telnyx/aid-lang/wiki)
 📋 **Roadmap:** [Issues](https://github.com/danilo-telnyx/aid-lang/issues)
+📄 **Full Spec:** [Language Documentation](docs/AID-Language-Documentation.md)
 
-AID is a programming language designed to blur the line between writing code and expressing intent. It combines familiar syntax with AI-native constructs — `reason` blocks that generate logic at compile time, `evolve` blocks that improve themselves across builds, and natural-language contracts that compile to type-safe validation. AID transpiles to Rust and targets native binaries and WebAssembly.
+---
+
+AID is a statically typed, compiled programming language with **embedded AI reasoning**. Write decision logic in natural language, and the compiler generates optimized code. Your software gets smarter with every deploy.
+
+AID transpiles to Rust and compiles to native binaries (WASM planned). No cloud APIs. No ML infrastructure. Intelligence is a language feature.
+
+---
 
 ## Hello World
 
@@ -30,59 +43,223 @@ fn main() {
 }
 ```
 
-## Key Features
+```bash
+$ aid build hello.aid
+  ✓ Parse
+  ✓ Transpile
+  ✓ Compile
+  ✓ Binary → build/aid-hello (1.5 MB)
+  ✓ Docs
+  Build complete in 0.4s
 
-- **Reason Blocks** — Describe *what* you want; the compiler generates *how*
-- **Evolve Blocks** — Functions that improve themselves across build cycles using telemetry
-- **Intent Routing** — Declare endpoints by intent; the compiler discovers and wires handlers
-- **Contracts** — Natural-language rules compiled to type-safe validation
-- **Auto-Docs** — Documentation generated directly from code and contracts
-- **WASM Target** — Compile to WebAssembly for universal deployment
+$ aid run
+  🚀 AID server listening on http://0.0.0.0:8080
+```
 
-## Quick Start
+---
+
+## The Killer Feature: `reason` Blocks
+
+Declare AI-powered decisions directly in your code:
+
+```aid
+reason classify_ticket(text: string) -> string {
+    goal: "Classify a customer support ticket into a category"
+    constraints: [
+        "Return one of: billing, technical, general, urgent",
+        "Tickets mentioning outage or down are always urgent"
+    ]
+    examples: [
+        ("My card was charged twice", "billing"),
+        ("Server is down", "urgent"),
+        ("How do I reset my password", "technical")
+    ]
+    fallback: "general"
+}
+
+// Use it like any function
+category := classify_ticket(ticket.text)
+```
+
+The compiler analyzes your goal, constraints, and examples — then generates an optimized decision function. No ML pipeline. No API calls. It's just a language feature.
+
+---
+
+## Self-Improving Code: `evolve` Blocks
+
+```aid
+evolve classify_ticket {
+    track: true
+    retrain_every: 500
+    min_accuracy: 0.95
+    approve: true
+}
+```
+
+Every call is logged. Next build, the compiler reads the telemetry and generates better logic. Your code improves just by being used.
 
 ```bash
-# Build the project
-aid build
-
-# Run the compiled binary
-aid run
+$ curl http://localhost:8080/telemetry
+{
+  "classify_ticket": {
+    "calls": 1247,
+    "distribution": {"billing": "42%", "technical": "31%", "urgent": "15%", "general": "12%"}
+  }
+}
 ```
+
+---
+
+## Natural Language Validation: `contract`
+
+```aid
+contract UserAPI {
+    "User ID must be a positive integer"
+    "Email must contain exactly one @ symbol"
+    "Age must be between 13 and 120"
+    "Role must be one of: admin, editor, viewer"
+
+    fn create(user: User) -> result<User, ValidationError>
+}
+```
+
+The compiler reads the English rules and generates type-safe validators. No boilerplate. No regex. Just describe what valid looks like.
+
+---
+
+## Key Features
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| 🧠 **Reason Blocks** | AI-powered decision functions from natural language | ✅ Working |
+| 🧬 **Evolve Blocks** | Self-improving code via runtime telemetry | ✅ Working |
+| 📜 **Contracts** | English rules → type-safe validators | ✅ Working |
+| 📄 **Auto-Documentation** | Docs generated at every build | ✅ Working |
+| 🎯 **Intent Routing** | Compiler discovers handlers, builds route tables | 🔜 Next |
+| ⚡ **WASM Target** | Compile to WebAssembly, deploy anywhere | 🔜 Planned |
+| 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
+
+---
 
 ## Architecture
 
 ```
-┌──────────┐     ┌────────┐     ┌────────┐     ┌────────────┐     ┌──────┐     ┌──────┐
-│ .aid file│────▶│ Parser │────▶│ Cortex │────▶│ Transpiler │────▶│ Rust │────▶│ WASM │
-└──────────┘     └────────┘     └────────┘     └────────────┘     └──────┘     └──────┘
-                  (pest)        (AI engine)     (code gen)        (cargo)     (target)
+┌─────────────┐     ┌────────┐     ┌─────────┐     ┌────────────┐     ┌──────┐     ┌────────┐
+│  .aid source │────▶│ Parser │────▶│ Cortex  │────▶│ Transpiler │────▶│ Rust │────▶│ Binary │
+└─────────────┘     │ (pest) │     │ Engine  │     │ (codegen)  │     │(cargo│     │+ Docs  │
+                    └────────┘     └─────────┘     └────────────┘     └──────┘     └────────┘
+                                        │
+                                   Analyzes:
+                                   • reason blocks
+                                   • evolve telemetry
+                                   • contract rules
+                                   • intent routing
 ```
 
-## Current Status
+---
 
-### ✅ Working Today
-- Pest-based parser (hello-world subset)
-- Rust transpiler with Axum HTTP mapping
-- CLI: `aid build`, `aid run`, `aid clean`, `aid docs`
-- Hello world example with text and JSON routes
-- Auto-documentation generation
+## Language at a Glance
 
-### 🚧 Planned
-- Reason block transpilation
-- Evolve block telemetry
-- WASM compilation target
-- Contract validation generation
-- Intent routing
-- Full grammar (entities, async, pattern matching, loops, error handling)
+```aid
+// Strong types with inference
+name := "AID"
+port: int = 8080
 
-## Documentation
+// Entities (structs)
+entity User {
+    id: int
+    name: string
+    email: string
+    role: string = "viewer"
+    fn is_admin() -> bool => role == "admin"
+}
 
-Full language specification and documentation: [`docs/AID-Language-Documentation.md`](docs/AID-Language-Documentation.md)
+// Pattern matching
+match status {
+    200 => "OK"
+    404 => "Not Found"
+    500..599 => "Server Error"
+    _ => "Unknown"
+}
+
+// Error handling
+fn load(path: string) -> result<Config, Error> {
+    content := try read_file(path)
+    return Ok(parse(content))
+}
+
+// Async
+async fn fetch(url: string) -> result<string, Error> {
+    response := await http.get(url)
+    return Ok(response.body)
+}
+```
+
+---
+
+## Quick Start
+
+```bash
+# Clone the repo
+git clone https://github.com/danilo-telnyx/aid-lang.git
+cd aid-lang
+
+# Build the compiler (requires Rust)
+cd compiler && cargo build --release
+
+# Build an example
+./target/release/aid build ../examples/hello.aid
+
+# Run it
+./build/aid-hello
+```
+
+---
+
+## Examples
+
+| Example | Features Used | File |
+|---------|-------------|------|
+| Hello World | HTTP server, text + JSON responses | [`examples/hello.aid`](examples/hello.aid) |
+| Ticket Classifier | Reason blocks, evolve telemetry | [`examples/tickets.aid`](examples/tickets.aid) |
+| Full Demo | Entities, contracts, async, pattern matching, loops | [`examples/full-demo.aid`](examples/full-demo.aid) |
+| Contract Validation | Natural language validation rules | [`examples/contracts.aid`](examples/contracts.aid) |
+
+---
+
+## Comparison
+
+| Feature | AID | Go | Rust | Python |
+|---------|-----|-----|------|--------|
+| AI reasoning built-in | ✅ | ❌ | ❌ | ❌ |
+| Self-improving code | ✅ | ❌ | ❌ | ❌ |
+| Natural language validation | ✅ | ❌ | ❌ | ❌ |
+| Auto-documentation | ✅ | ❌ | ✅ | ❌ |
+| Type safety | ✅ | ✅ | ✅ | ❌ |
+| HTTP built-in | ✅ | ✅ | ❌ | ❌ |
+| WASM target | 🔜 | 🟡 | ✅ | ❌ |
+
+---
 
 ## License
 
-[MIT](LICENSE)
+**Business Source License 1.1** — Free for personal, educational, open source, and internal use.
 
-## Project Owner
+Commercial use requires a [Commercial License](COMMERCIAL.md) with revenue-based pricing (first $100K free).
 
-- **[@danilo-telnyx](https://github.com/danilo-telnyx)** — Owner & Approver
+Converts to Apache 2.0 on February 19, 2030.
+
+See [LICENSE.md](LICENSE.md) for full terms.
+
+---
+
+## Project
+
+- **Owner:** [@danilo-telnyx](https://github.com/danilo-telnyx)
+- **Language:** Compiler written in Rust
+- **Created:** February 2026
+- **Status:** Alpha (v0.1.0)
+
+---
+
+*Built with conviction that programming languages should think, not just execute.*

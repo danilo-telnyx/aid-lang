@@ -44,6 +44,7 @@
     <div class="code-tabs">
       <button class="code-tab active" data-tab="hello">hello.aid</button>
       <button class="code-tab" data-tab="tickets">tickets.aid</button>
+      <button class="code-tab" data-tab="contracts">contracts.aid</button>
     </div>
     <pre class="code-block active" id="tab-hello"><code><span class="kw">module</span> main
 
@@ -99,6 +100,28 @@
 
     server.<span class="fn-name">start</span>()
 }</code></pre>
+    <pre class="code-block" id="tab-contracts"><code><span class="kw">module</span> main
+
+<span class="kw">use</span> std.http
+
+<span class="kw">entity</span> <span class="type">User</span> {
+    id: <span class="type">int</span>
+    name: <span class="type">string</span>
+    email: <span class="type">string</span>
+    age: <span class="type">int</span>
+    role: <span class="type">string</span> <span class="op">=</span> <span class="str">"viewer"</span>
+}
+
+<span class="ai">contract</span> <span class="fn-name">UserAPI</span> {
+    <span class="str">"User ID must be a positive integer"</span>
+    <span class="str">"Name must be between 2 and 100 characters"</span>
+    <span class="str">"Email must contain exactly one @ symbol"</span>
+    <span class="str">"Age must be between 13 and 120"</span>
+    <span class="str">"Role must be one of: admin, editor, viewer"</span>
+
+    <span class="kw">fn</span> <span class="fn-name">create</span>(user: <span class="type">User</span>) <span class="op">-></span> result&lt;<span class="type">User</span>, <span class="type">ApiError</span>&gt;
+    <span class="kw">fn</span> <span class="fn-name">get</span>(id: <span class="type">int</span>) <span class="op">-></span> option&lt;<span class="type">User</span>&gt;
+}</code></pre>
   </div>
 </section>
 
@@ -125,8 +148,8 @@
       </div>
       <div class="feature-card">
         <div class="icon">📜</div>
-        <h3>Contracts</h3>
-        <p>Describe validation rules in English. The compiler generates type-safe validators automatically.</p>
+        <h3>Contracts ✅</h3>
+        <p>Describe validation rules in English. The compiler generates type-safe validators automatically. Working in v0.1.0-alpha — supports positive integer, between, contains, and one-of patterns.</p>
       </div>
       <div class="feature-card">
         <div class="icon">📄</div>

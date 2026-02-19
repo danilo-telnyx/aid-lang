@@ -6,6 +6,29 @@
 
 ---
 
+## Implementation Status
+
+> Last updated: 2026-02-19 (v0.1.0-alpha)
+
+| Feature | Spec | Implemented | Notes |
+|---------|------|-------------|-------|
+| Type system | ✅ | ✅ | Full parser support |
+| Entities | ✅ | ✅ | Fields, defaults, methods |
+| Functions | ✅ | ✅ | Regular, async, lambda, private |
+| Control flow | ✅ | ✅ | if/else, match, for, while |
+| Error handling | ✅ | ✅ | result, option, try |
+| Modules | ✅ | ✅ | Parsing only |
+| Reason blocks | ✅ | ✅ V1 | Keyword matching from examples |
+| Evolve blocks | ✅ | ✅ V1 | Runtime telemetry logging |
+| Intent routing | ✅ | ⬜ | Planned |
+| Contracts | ✅ | ✅ V1 | English rules → validators |
+| HTTP server | ✅ | ✅ | Via Axum |
+| Auto-docs | ✅ | ✅ | Basic generation |
+| WASM target | ✅ | ⬜ | Native binary only |
+| Cortex engine | ✅ | ⬜ | V1 uses keyword matching |
+
+---
+
 ## Table of Contents
 
 1. [Introduction](#1-introduction)

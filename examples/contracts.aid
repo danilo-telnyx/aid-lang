@@ -1,0 +1,46 @@
+module main
+
+use std.http
+
+entity User {
+    id: int
+    name: string
+    email: string
+    age: int
+    role: string = "viewer"
+}
+
+entity ApiError {
+    code: int
+    message: string
+    field: string
+}
+
+contract UserAPI {
+    "User ID must be a positive integer"
+    "Name must be between 2 and 100 characters"
+    "Email must contain exactly one @ symbol"
+    "Age must be between 13 and 120"
+    "Role must be one of: admin, editor, viewer"
+
+    fn create(user: User) -> result<User, ApiError>
+    fn get(id: int) -> option<User>
+}
+
+fn main() {
+    server := http.new(port: 8080)
+
+    server.get("/") => fn(req) -> Response {
+        Response.text("AID Contract Validation Demo")
+    }
+
+    server.get("/health") => fn(req) -> Response {
+        Response.json({ status: "ok" })
+    }
+
+    server.post("/users") => fn(req) -> Response {
+        Response.json({ status: "validated" })
+    }
+
+    server.start()
+}
