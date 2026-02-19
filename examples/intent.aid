@@ -1,0 +1,65 @@
+module main
+
+use std.http
+
+entity User {
+    id: int
+    name: string
+    email: string
+    role: string = "viewer"
+}
+
+entity Ticket {
+    id: int
+    title: string
+    status: string = "open"
+}
+
+/// Handlers — the compiler discovers these automatically
+fn create_user(name: string, email: string) -> string {
+    return "created user: " + name
+}
+
+fn get_user(id: int) -> string {
+    return "user #" + id.to_string()
+}
+
+fn list_users() -> string {
+    return "all users"
+}
+
+fn delete_user(id: int) -> string {
+    return "deleted user #" + id.to_string()
+}
+
+fn create_ticket(title: string) -> string {
+    return "created ticket: " + title
+}
+
+fn list_tickets() -> string {
+    return "all tickets"
+}
+
+fn get_ticket(id: int) -> string {
+    return "ticket #" + id.to_string()
+}
+
+fn main() {
+    server := http.new(port: 8080)
+
+    // Explicit routes always win
+    server.get("/") => fn(req) -> Response {
+        Response.text("AID Intent Routing Demo")
+    }
+
+    server.get("/health") => fn(req) -> Response {
+        Response.json({ status: "ok" })
+    }
+
+    // Intent routing — compiler discovers handlers
+    server.intent("/api") => fn(req) -> Response {
+        Response.json({ error: "Route not found" })
+    }
+
+    server.start()
+}

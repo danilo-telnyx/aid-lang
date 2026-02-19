@@ -3,3 +3,5 @@
 {"function":"classify_ticket","input":"How to use the API","output":"general","timestamp":"2026-02-19T16:34:28.537426+00:00"}
 {"function":"classify_ticket","input":"I need a refund","output":"general","timestamp":"2026-02-19T16:34:28.554297+00:00"}
 {"function":"classify_ticket","input":"Everything crashed","output":"general","timestamp":"2026-02-19T16:34:28.570004+00:00"}
+{"function":"classify_ticket","input":"My card was charged twice","output":"billing","timestamp":"2026-02-19T20:18:45.117400+00:00"}
+{"function":"classify_ticket","input":"Server is down","output":"urgent","timestamp":"2026-02-19T20:18:45.140225+00:00"}

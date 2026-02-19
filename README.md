@@ -135,7 +135,7 @@ The compiler reads the English rules and generates type-safe validators. No boil
 | 🧬 **Evolve Blocks** | Self-improving code via runtime telemetry | ✅ Working |
 | 📜 **Contracts** | English rules → type-safe validators | ✅ Working |
 | 📄 **Auto-Documentation** | Docs generated at every build | ✅ Working |
-| 🎯 **Intent Routing** | Compiler discovers handlers, builds route tables | 🔜 Next |
+| 🎯 **Intent Routing** | Compiler discovers handlers, builds route tables | ✅ Working |
 | ⚡ **WASM Target** | Compile to WebAssembly, deploy anywhere | 🔜 Planned |
 | 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
 
@@ -224,6 +224,7 @@ cd compiler && cargo build --release
 | Ticket Classifier | Reason blocks, evolve telemetry | [`examples/tickets.aid`](examples/tickets.aid) |
 | Full Demo | Entities, contracts, async, pattern matching, loops | [`examples/full-demo.aid`](examples/full-demo.aid) |
 | Contract Validation | Natural language validation rules | [`examples/contracts.aid`](examples/contracts.aid) |
+| Intent Routing | Auto-discovered routes, /api/routes endpoint | [`examples/intent.aid`](examples/intent.aid) |
 
 ---
 

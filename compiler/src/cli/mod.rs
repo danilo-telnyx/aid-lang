@@ -223,6 +223,111 @@ struct HttpServerInfo {
     routes: Vec<HttpRoute>,
 }
 
+struct IntentBlock {
+    base_path: String,
+    fallback_handler_code: String,
+}
+
+struct IntentRoute {
+    method: String,
+    path: String,
+    handler_name: String,
+    aid_fn_name: String,
+}
+
+/// Naïve English pluralisation (good enough for code-gen).
+fn pluralize(word: &str) -> String {
+    if word.ends_with('s') || word.ends_with('x') || word.ends_with("sh") || word.ends_with("ch") {
+        format!("{}es", word)
+    } else if word.ends_with('y') && !word.ends_with("ey") && !word.ends_with("ay") && !word.ends_with("oy") {
+        format!("{}ies", &word[..word.len() - 1])
+    } else {
+        format!("{}s", word)
+    }
+}
+
+/// Infer HTTP method + sub-path from a handler function name.
+fn infer_intent_route(name: &str) -> Option<(String, String, bool)> {
+    // Returns (method, entity_name, needs_id)
+    let prefixes: &[(&[&str], &str, bool)] = &[
+        (&["create_"], "POST", false),
+        (&["list_"], "GET", false),
+        (&["get_", "find_"], "GET", true),
+        (&["update_"], "PATCH", true),
+        (&["delete_", "remove_"], "DELETE", true),
+    ];
+
+    for (patterns, method, with_id) in prefixes {
+        for prefix in *patterns {
+            if let Some(entity) = name.strip_prefix(prefix) {
+                return Some((method.to_string(), entity.to_string(), *with_id));
+            }
+        }
+    }
+    // Note: for list_ prefix, entity is already plural (list_users -> "users")
+    None
+}
+
+/// Discover intent routes by scanning all functions in the program.
+fn discover_intent_routes(program: &Program, base_path: &str) -> Vec<IntentRoute> {
+    let base = base_path.trim_end_matches('/');
+    let mut routes = Vec::new();
+
+    for decl in &program.declarations {
+        if let Declaration::Function(f) = decl {
+            if f.name == "main" { continue; }
+            if let Some((method, entity, needs_id)) = infer_intent_route(&f.name) {
+                // For list_ prefix, entity is already plural (list_users -> "users")
+                let is_list = f.name.starts_with("list_");
+                let collection = if is_list { entity.clone() } else { pluralize(&entity) };
+                let path = if needs_id {
+                    format!("{}/{}/{{id}}", base, collection)
+                } else {
+                    format!("{}/{}", base, collection)
+                };
+                let handler_name = format!("intent_{}", f.name);
+                routes.push(IntentRoute {
+                    method,
+                    path,
+                    handler_name,
+                    aid_fn_name: f.name.clone(),
+                });
+            }
+        }
+    }
+    routes
+}
+
+/// Extract an intent block from an expression like `server.intent("/api") => fn(req) -> Response { ... }`
+fn extract_intent_block(expr: &Expression, server_var: &str) -> Option<IntentBlock> {
+    if let Expression::BinaryOp {
+        left,
+        op: BinaryOperator::Arrow,
+        right,
+        ..
+    } = expr
+    {
+        if let Expression::Call { callee, args, .. } = left.as_ref() {
+            if let Expression::MemberAccess { object, member, .. } = callee.as_ref() {
+                if let Expression::Identifier { name, .. } = object.as_ref() {
+                    if name == server_var && member == "intent" {
+                        let base_path = args.first().and_then(|a| {
+                            if let Expression::Literal { value: Literal::String(s), .. } = &a.value {
+                                Some(s.clone())
+                            } else {
+                                None
+                            }
+                        })?;
+                        let fallback_handler_code = extract_handler_body(right).unwrap_or_else(|| "    todo!()".to_string());
+                        return Some(IntentBlock { base_path, fallback_handler_code });
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 fn extract_http_server(program: &Program) -> Option<HttpServerInfo> {
     let main_fn = program.declarations.iter().find_map(|d| {
         if let Declaration::Function(f) = d {
@@ -258,10 +363,47 @@ fn extract_http_server(program: &Program) -> Option<HttpServerInfo> {
         }
     }
 
-    if routes.is_empty() {
-        return None;
-    }
     Some(HttpServerInfo { port, routes })
+}
+
+/// Extract intent blocks from the main function.
+fn extract_intent_blocks(program: &Program) -> Vec<IntentBlock> {
+    let main_fn = program.declarations.iter().find_map(|d| {
+        if let Declaration::Function(f) = d {
+            if f.name == "main" { Some(f) } else { None }
+        } else {
+            None
+        }
+    });
+    let main_fn = match main_fn {
+        Some(f) => f,
+        None => return Vec::new(),
+    };
+    let stmts = match &main_fn.body {
+        FunctionBody::Block(stmts) => stmts,
+        _ => return Vec::new(),
+    };
+
+    // Find server var name
+    let mut server_var = String::new();
+    for stmt in stmts {
+        if let Statement::VarDecl { name, value, .. } = stmt {
+            if extract_port_from_http_new(value).is_some() {
+                server_var = name.clone();
+                break;
+            }
+        }
+    }
+
+    let mut blocks = Vec::new();
+    for stmt in stmts {
+        if let Statement::Expression { expr, .. } = stmt {
+            if let Some(block) = extract_intent_block(expr, &server_var) {
+                blocks.push(block);
+            }
+        }
+    }
+    blocks
 }
 
 fn extract_port_from_http_new(expr: &Expression) -> Option<u16> {
@@ -296,6 +438,8 @@ fn extract_route(expr: &Expression, server_var: &str) -> Option<HttpRoute> {
                 if let Expression::Identifier { name, .. } = object.as_ref() {
                     if name == server_var {
                         let method = member.clone();
+                        // Skip intent — handled separately
+                        if method == "intent" { return None; }
                         let path = args.first().and_then(|a| {
                             if let Expression::Literal {
                                 value: Literal::String(s),
@@ -350,6 +494,41 @@ fn extract_handler_body(expr: &Expression) -> Option<String> {
         }
     }
     None
+}
+
+/// Convert an AID AST expression to Rust code (simplified for intent handler bodies).
+fn aid_expr_to_rust(expr: &Expression) -> String {
+    match expr {
+        Expression::Literal { value: Literal::String(s), .. } => format!("\"{}\".to_string()", s),
+        Expression::Literal { value: Literal::Int(n), .. } => format!("{}", n),
+        Expression::Literal { value: Literal::Float(f), .. } => format!("{}", f),
+        Expression::Literal { value: Literal::Bool(b), .. } => format!("{}", b),
+        Expression::Identifier { name, .. } => name.clone(),
+        Expression::BinaryOp { left, op: BinaryOperator::Add, right, .. } => {
+            // Check if string concatenation
+            let l = aid_expr_to_rust(left);
+            let r = aid_expr_to_rust(right);
+            format!("format!(\"{{}}{{}}\", {}, {})", l, r)
+        }
+        Expression::Call { callee, args, .. } => {
+            if let Expression::MemberAccess { object, member, .. } = callee.as_ref() {
+                let obj = aid_expr_to_rust(object);
+                if member == "to_string" {
+                    return format!("{}.to_string()", obj);
+                }
+                let args_str: Vec<String> = args.iter().map(|a| aid_expr_to_rust(&a.value)).collect();
+                format!("{}.{}({})", obj, member, args_str.join(", "))
+            } else {
+                let func = aid_expr_to_rust(callee);
+                let args_str: Vec<String> = args.iter().map(|a| aid_expr_to_rust(&a.value)).collect();
+                format!("{}({})", func, args_str.join(", "))
+            }
+        }
+        Expression::MemberAccess { object, member, .. } => {
+            format!("{}.{}", aid_expr_to_rust(object), member)
+        }
+        _ => "todo!()".to_string(),
+    }
 }
 
 fn expr_to_handler_rust(expr: &Expression) -> String {
@@ -774,10 +953,10 @@ fn generate_telemetry_endpoint(evolve_blocks: &[EvolveBlockInfo]) -> String {
 fn generate_http_project(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo]) -> (String, String) {
     generate_http_project_with_evolve(project_name, info, reason_blocks, &[], &[], &Program {
         module: String::new(), imports: vec![], declarations: vec![], span: Span::default(),
-    })
+    }, &[], &[])
 }
 
-fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo], evolve_blocks: &[EvolveBlockInfo], contracts: &[ContractInfo], program: &Program) -> (String, String) {
+fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo], evolve_blocks: &[EvolveBlockInfo], contracts: &[ContractInfo], program: &Program, intent_blocks: &[IntentBlock], intent_routes: &[IntentRoute]) -> (String, String) {
     let has_evolve = !evolve_blocks.is_empty();
     let evolved_targets: Vec<&str> = evolve_blocks.iter().map(|e| e.target.as_str()).collect();
 
@@ -859,6 +1038,145 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
         main_rs.push_str("\n");
     }
 
+    // ── Intent routing: emit AID handler functions and Axum wrappers ────
+    let has_intent = !intent_blocks.is_empty();
+    if has_intent {
+        // Emit the original AID functions that intent routing wraps
+        for decl in &program.declarations {
+            if let Declaration::Function(f) = decl {
+                if f.name == "main" { continue; }
+                // Check if this function is referenced by any intent route
+                let is_intent_fn = intent_routes.iter().any(|r| r.aid_fn_name == f.name);
+                if !is_intent_fn { continue; }
+
+                // Extract params info
+                let params: Vec<(String, String)> = f.params.iter().map(|p| {
+                    let ty = match &p.ty {
+                        AidType::Int => "i64".to_string(),
+                        AidType::Float => "f64".to_string(),
+                        AidType::Bool => "bool".to_string(),
+                        AidType::String => "String".to_string(),
+                        _ => "String".to_string(),
+                    };
+                    (p.name.clone(), ty)
+                }).collect();
+
+                let ret_type = match &f.return_type {
+                    Some(AidType::String) => "String",
+                    Some(AidType::Int) => "i64",
+                    _ => "String",
+                };
+
+                // Emit the AID function
+                let params_str: Vec<String> = params.iter().map(|(n, t)| format!("{}: {}", n, t)).collect();
+                main_rs.push_str(&format!("fn {}({}) -> {} {{\n", f.name, params_str.join(", "), ret_type));
+
+                // Emit function body
+                if let FunctionBody::Block(stmts) = &f.body {
+                    for stmt in stmts {
+                        match stmt {
+                            Statement::Return { value: Some(expr), .. } => {
+                                main_rs.push_str(&format!("    return {};\n", aid_expr_to_rust(expr)));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                main_rs.push_str("}\n\n");
+
+                // Emit Axum wrapper handler
+                let handler_name = format!("intent_{}", f.name);
+
+                // Determine if handler needs path params (id) or body params
+                let needs_id = intent_routes.iter().any(|r| r.aid_fn_name == f.name && (r.path.contains(":id") || r.path.contains("{id}")));
+
+                if needs_id && params.len() == 1 && params[0].1 == "i64" {
+                    // GET/DELETE with :id -> extract from Path
+                    main_rs.push_str(&format!(
+                        "async fn {}(axum::extract::Path(id): axum::extract::Path<i64>) -> impl IntoResponse {{\n",
+                        handler_name
+                    ));
+                    main_rs.push_str(&format!("    let result = {}(id);\n", f.name));
+                    main_rs.push_str("    Json(serde_json::json!({\"result\": result})).into_response()\n");
+                    main_rs.push_str("}\n\n");
+                } else if params.is_empty() {
+                    // list_ handlers — no params
+                    main_rs.push_str(&format!(
+                        "async fn {}() -> impl IntoResponse {{\n",
+                        handler_name
+                    ));
+                    main_rs.push_str(&format!("    let result = {}();\n", f.name));
+                    main_rs.push_str("    Json(serde_json::json!({\"result\": result})).into_response()\n");
+                    main_rs.push_str("}\n\n");
+                } else {
+                    // POST/PATCH — extract from JSON body
+                    main_rs.push_str(&format!(
+                        "async fn {}(body: String) -> impl IntoResponse {{\n",
+                        handler_name
+                    ));
+                    main_rs.push_str("    let parsed: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Object(serde_json::Map::new()));\n");
+                    for (pname, ptype) in &params {
+                        match ptype.as_str() {
+                            "i64" => {
+                                main_rs.push_str(&format!(
+                                    "    let {} = parsed[\"{}\"].as_i64().unwrap_or(0);\n",
+                                    pname, pname
+                                ));
+                            }
+                            "f64" => {
+                                main_rs.push_str(&format!(
+                                    "    let {} = parsed[\"{}\"].as_f64().unwrap_or(0.0);\n",
+                                    pname, pname
+                                ));
+                            }
+                            "bool" => {
+                                main_rs.push_str(&format!(
+                                    "    let {} = parsed[\"{}\"].as_bool().unwrap_or(false);\n",
+                                    pname, pname
+                                ));
+                            }
+                            _ => {
+                                main_rs.push_str(&format!(
+                                    "    let {} = parsed[\"{}\"].as_str().unwrap_or(\"\").to_string();\n",
+                                    pname, pname
+                                ));
+                            }
+                        }
+                    }
+                    let call_args: Vec<String> = params.iter().map(|(n, _)| n.clone()).collect();
+                    main_rs.push_str(&format!("    let result = {}({});\n", f.name, call_args.join(", ")));
+                    main_rs.push_str("    Json(serde_json::json!({\"result\": result})).into_response()\n");
+                    main_rs.push_str("}\n\n");
+                }
+            }
+        }
+
+        // Generate /routes endpoint for each intent block
+        for ib in intent_blocks {
+            let base = ib.base_path.trim_end_matches('/');
+            let routes_for_block: Vec<&IntentRoute> = intent_routes.iter()
+                .filter(|r| r.path.starts_with(base))
+                .collect();
+
+            main_rs.push_str("async fn handle_api_routes() -> impl IntoResponse {\n");
+            main_rs.push_str("    let routes = serde_json::json!([\n");
+            for r in &routes_for_block {
+                main_rs.push_str(&format!(
+                    "        {{\"method\": \"{}\", \"path\": \"{}\", \"handler\": \"{}\"}},\n",
+                    r.method, r.path, r.aid_fn_name
+                ));
+            }
+            main_rs.push_str("    ]);\n");
+            main_rs.push_str("    Json(routes).into_response()\n");
+            main_rs.push_str("}\n\n");
+
+            // Generate fallback handler
+            main_rs.push_str("async fn handle_intent_fallback() -> impl IntoResponse {\n");
+            main_rs.push_str(&format!("{}\n", ib.fallback_handler_code));
+            main_rs.push_str("}\n\n");
+        }
+    }
+
     for route in &info.routes {
         // POST handlers that call reason blocks get special treatment
         if route.method == "post" {
@@ -908,12 +1226,46 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
     }
 
     main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
+
+    // Build intent sub-routers if any
+    if has_intent {
+        for ib in intent_blocks {
+            let base = ib.base_path.trim_end_matches('/');
+            let routes_for_block: Vec<&IntentRoute> = intent_routes.iter()
+                .filter(|r| r.path.starts_with(base))
+                .collect();
+
+            main_rs.push_str("    let intent_router = Router::new()\n");
+            for r in &routes_for_block {
+                // Strip base path for nesting
+                let sub_path = r.path.strip_prefix(base).unwrap_or(&r.path);
+                let method_fn = r.method.to_lowercase();
+                main_rs.push_str(&format!(
+                    "        .route(\"{}\", routing::{}({}))\n",
+                    sub_path, method_fn, r.handler_name
+                ));
+            }
+            main_rs.push_str("        .route(\"/routes\", routing::get(handle_api_routes))\n");
+            main_rs.push_str("        .fallback(handle_intent_fallback)\n");
+            main_rs.push_str("    ;\n\n");
+        }
+    }
+
     main_rs.push_str("    let app = Router::new()\n");
     for route in &info.routes {
         main_rs.push_str(&format!(
             "        .route(\"{}\", routing::{}({}))\n",
             route.path, route.method, route.handler_name
         ));
+    }
+    if has_intent {
+        for ib in intent_blocks {
+            let base = ib.base_path.trim_end_matches('/');
+            main_rs.push_str(&format!(
+                "        .nest(\"{}\", intent_router)\n",
+                base
+            ));
+        }
     }
     if has_evolve {
         main_rs.push_str("        .route(\"/telemetry\", routing::get(handle_telemetry))\n");
@@ -1306,8 +1658,39 @@ fn handle_build(file: Option<PathBuf>, release: bool, no_docs: bool, verbose: bo
         );
     }
 
-    let (main_rs, cargo_toml) = if let Some(info) = extract_http_server(&program) {
-        generate_http_project_with_evolve(&project_name, &info, &reason_blocks, &evolve_blocks, &contracts, &program)
+    // Detect intent blocks
+    let intent_blocks = extract_intent_blocks(&program);
+    let mut all_intent_routes: Vec<IntentRoute> = Vec::new();
+    for ib in &intent_blocks {
+        let routes = discover_intent_routes(&program, &ib.base_path);
+        println!(
+            "  {} Intent: {} routes auto-discovered for {}",
+            "✓".green().bold(),
+            routes.len(),
+            ib.base_path
+        );
+        // Print routing table
+        for r in &routes {
+            println!(
+                "      {:<7} {:<25} → {}",
+                r.method,
+                r.path,
+                r.aid_fn_name
+            );
+        }
+        all_intent_routes.extend(routes);
+    }
+
+    let http_info = extract_http_server(&program);
+    let (main_rs, cargo_toml) = if let Some(info) = http_info {
+        if info.routes.is_empty() && all_intent_routes.is_empty() {
+            println!(
+                "  {} Transpile — no routes found in source",
+                "✗".red().bold()
+            );
+            std::process::exit(1);
+        }
+        generate_http_project_with_evolve(&project_name, &info, &reason_blocks, &evolve_blocks, &contracts, &program, &intent_blocks, &all_intent_routes)
     } else {
         println!(
             "  {} Transpile — no supported pattern found in source",

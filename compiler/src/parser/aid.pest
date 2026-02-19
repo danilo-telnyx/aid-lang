@@ -383,7 +383,7 @@ keyword = {
     | "const" | "continue" | "contract" | "dynamic"
     | "else" | "entity" | "evolve" | "false" | "float"
     | "fn" | "for" | "goal" | "hybrid" | "if"
-    | "implement" | "import" | "in" | "int" | "intent"
+    | "implement" | "import" | "in" | "int"
     | "match" | "module" | "mut" | "None" | "option"
     | "private" | "reason" | "result" | "return" | "Some"
     | "static" | "stream" | "string" | "struct" | "test"

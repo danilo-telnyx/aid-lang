@@ -20,7 +20,7 @@
 | Modules | ✅ | ✅ | Parsing only |
 | Reason blocks | ✅ | ✅ V1 | Keyword matching from examples |
 | Evolve blocks | ✅ | ✅ V1 | Runtime telemetry logging |
-| Intent routing | ✅ | ⬜ | Planned |
+| Intent routing | ✅ | ✅ V1 | Auto-discovery by naming convention |
 | Contracts | ✅ | ✅ V1 | English rules → validators |
 | HTTP server | ✅ | ✅ | Via Axum |
 | Auto-docs | ✅ | ✅ | Basic generation |

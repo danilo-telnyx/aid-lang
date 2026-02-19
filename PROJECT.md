@@ -28,7 +28,7 @@
 |----------|---------|--------|-------------|
 | ⭐ 1 | `reason` blocks | ✅ V1 done | Declarative AI functions with goal/constraints/examples/fallback |
 | ⭐ 2 | `evolve` blocks | ✅ V1 done | Self-improving code — runtime telemetry feeds next build |
-| ⭐ 3 | `intent` routing | ⬜ Planned | AI-native HTTP routing — Cortex builds route tables at compile time |
+| ⭐ 3 | `intent` routing | ✅ V1 done | AI-native HTTP routing — Cortex builds route tables at compile time |
 | ⭐ 4 | `contract` validation | ✅ V1 done | Natural language rules → type-safe validators, /validate endpoint |
 | ⭐ 5 | Auto-documentation | ✅ Basic | Generated at every build, includes reason block explanations |
 
@@ -42,7 +42,8 @@
 │   ├── hello.aid                        # Hello world (text + JSON routes)
 │   ├── tickets.aid                      # Reason blocks + evolve telemetry
 │   ├── full-demo.aid                    # All language features combined
-│   └── contracts.aid                    # Contract validation demo
+│   ├── contracts.aid                    # Contract validation demo
+│   └── intent.aid                       # Intent routing demo
 ├── poc/transpile.mjs                    # PoC transpiler (Node.js, keep for reference)
 ├── aid                                  # PoC CLI wrapper (bash)
 ├── compiler/                            # ⭐ Real compiler (Rust)
@@ -72,7 +73,8 @@
 - `contract` blocks → English rules parsed into type-safe validators, /validate endpoint
 - Auto-docs generated at every build
 - Full CLI: build, run, clean, docs, fmt, lint, cortex, rollback, evolve
-- 4 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid
+- Intent routing: compiler auto-discovers handlers by naming convention, builds route tables, /api/routes endpoint
+- 5 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid
 
 ## How to Build & Test
 
@@ -102,7 +104,7 @@ cargo build --release
 | 2 | Evolve block telemetry | ✅ Done | — | JSONL logging + /telemetry endpoint |
 | 3 | WASM compilation target | ⬜ Open | 2 days | Switch from native to wasm32-wasi |
 | 4 | Contract validation generation | ✅ Done | — | English rules → type-safe validators, /validate endpoint |
-| 5 | Intent routing | ⬜ Open | 2 days | Auto-discover handlers, build route tables |
+| 5 | Intent routing | ✅ Done | — | Auto-discover handlers, build route tables, /api/routes endpoint |
 | 6 | Project website | ✅ Done | — | GitHub Pages site live |
 | 7 | Expand parser to full grammar | ✅ Done | — | Entities, methods, match, loops, try, async, contracts, implements |
 

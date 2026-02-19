@@ -14,7 +14,8 @@
 - std.http → Axum mapping with routes, middleware, JSON support
 - GitHub Wiki with 19 documentation pages
 - Project website (GitHub Pages)
-- 4 working examples: hello, tickets, full-demo, contracts
+- Intent routing: compiler auto-discovers handlers, builds route tables, /api/routes endpoint
+- 5 working examples: hello, tickets, full-demo, contracts, intent
 - BSL 1.1 license with commercial revenue share terms
 
 ### Architecture
