@@ -1,0 +1,18 @@
+[package]
+name = "aid-compiler"
+version = "0.1.0"
+edition = "2024"
+description = "AID Language Compiler — Auto-Intelligent Development"
+
+[[bin]]
+name = "aid"
+path = "src/main.rs"
+
+[dependencies]
+pest = "2.7"
+pest_derive = "2.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+colored = "3"
+toml = "0.8"

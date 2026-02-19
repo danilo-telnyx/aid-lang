@@ -1,0 +1,383 @@
+// ============================================================================
+// AID Language — PEG Grammar (pest)
+// Version 1.0
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// Silent rules: automatic whitespace and comment handling
+// ---------------------------------------------------------------------------
+
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+COMMENT    = _{ doc_comment | line_comment }
+
+doc_comment  = { "///" ~ (!NEWLINE ~ ANY)* }
+line_comment = { "//" ~ !("/" ~ (!NEWLINE ~ ANY)) ~ (!NEWLINE ~ ANY)* }
+
+// ---------------------------------------------------------------------------
+// Program structure
+// ---------------------------------------------------------------------------
+
+program = { SOI ~ module_decl ~ import_decl* ~ declaration* ~ EOI }
+
+module_decl = { "module" ~ qualified_name }
+
+import_decl = {
+    "use" ~ qualified_name ~ ( ".{" ~ ident_list ~ "}" | ".*" )?
+}
+
+qualified_name = { ident ~ ("." ~ ident)* }
+
+ident_list = { ident ~ ("," ~ ident)* }
+
+// ---------------------------------------------------------------------------
+// Declarations
+// ---------------------------------------------------------------------------
+
+declaration = {
+    entity_decl
+  | reason_decl
+  | evolve_decl
+  | contract_decl
+  | implement_decl
+  | function_decl
+  | const_decl
+  | type_alias
+}
+
+// ---------------------------------------------------------------------------
+// Entity
+// ---------------------------------------------------------------------------
+
+entity_decl = {
+    "entity" ~ ident ~ "{" ~ (method_decl | field_decl)* ~ "}"
+}
+
+field_decl = { ident ~ ":" ~ type_expr ~ ("=" ~ expression)? }
+
+method_decl = {
+    "private"? ~ "fn" ~ ident ~ "(" ~ param_list ~ ")" ~ "->" ~ type_expr ~ (block | "=>" ~ expression)
+}
+
+// ---------------------------------------------------------------------------
+// Functions
+// ---------------------------------------------------------------------------
+
+function_decl = {
+    "private"? ~ "async"? ~ "fn" ~ ident ~ "(" ~ param_list ~ ")" ~ ("->" ~ return_type)? ~ (block | "=>" ~ expression)
+}
+
+return_type = { tuple_type | type_expr }
+
+tuple_type = { "(" ~ type_expr ~ ("," ~ type_expr)+ ~ ")" }
+
+param_list = { (param ~ ("," ~ param)*)? }
+
+param = { ident ~ (":" ~ type_expr)? ~ ("=" ~ expression)? }
+
+// ---------------------------------------------------------------------------
+// Reason blocks
+// ---------------------------------------------------------------------------
+
+reason_decl = {
+    "reason" ~ reason_mode_annotation? ~ ident ~ "(" ~ param_list ~ ")" ~ "->" ~ type_expr ~ "{" ~ reason_body ~ "}"
+}
+
+reason_mode_annotation = { "(" ~ reason_mode ~ ")" }
+
+reason_mode = { "static" | "dynamic" }
+
+reason_body = {
+    reason_goal
+  ~ reason_constraints
+  ~ reason_context?
+  ~ reason_examples?
+  ~ reason_fallback?
+}
+
+reason_goal        = { "goal:" ~ string_literal }
+reason_constraints = { "constraints:" ~ "[" ~ string_list ~ "]" }
+reason_context     = { "context:" ~ "[" ~ expr_list ~ "]" }
+reason_examples    = { "examples:" ~ "[" ~ example_list ~ "]" }
+reason_fallback    = { "fallback:" ~ expression }
+
+string_list  = { (string_literal ~ ("," ~ string_literal)* ~ ","?)? }
+example_list = { (example_entry ~ ("," ~ example_entry)* ~ ","?)? }
+example_entry = { "(" ~ expression ~ "," ~ expression ~ ")" }
+
+// ---------------------------------------------------------------------------
+// Evolve blocks
+// ---------------------------------------------------------------------------
+
+evolve_decl = {
+    "evolve" ~ ident ~ "{" ~ evolve_field* ~ "}"
+}
+
+evolve_field = { ident ~ ":" ~ expression }
+
+// ---------------------------------------------------------------------------
+// Contracts
+// ---------------------------------------------------------------------------
+
+contract_decl = {
+    "contract" ~ ident ~ "{" ~ (contract_rule | fn_signature)* ~ "}"
+}
+
+contract_rule = { string_literal }
+
+fn_signature = {
+    "fn" ~ ident ~ "(" ~ param_list ~ ")" ~ "->" ~ type_expr
+}
+
+// ---------------------------------------------------------------------------
+// Implement blocks
+// ---------------------------------------------------------------------------
+
+implement_decl = {
+    "implement" ~ ident ~ "{" ~ function_decl* ~ "}"
+}
+
+// ---------------------------------------------------------------------------
+// Constants & type aliases
+// ---------------------------------------------------------------------------
+
+const_decl = { "const" ~ ident ~ "=" ~ expression }
+
+type_alias = { "type" ~ ident ~ "=" ~ type_expr }
+
+// ---------------------------------------------------------------------------
+// Type expressions
+// ---------------------------------------------------------------------------
+
+type_expr = {
+    fn_type
+  | array_type
+  | map_type
+  | option_type
+  | result_type
+  | stream_type
+  | scalar_type
+  | ident
+}
+
+scalar_type = { "int" | "float" | "bool" | "string" | "byte" }
+
+array_type  = { "array" ~ "<" ~ type_expr ~ ">" }
+map_type    = { "map" ~ "<" ~ type_expr ~ "," ~ type_expr ~ ">" }
+option_type = { "option" ~ "<" ~ type_expr ~ ">" }
+result_type = { "result" ~ "<" ~ type_expr ~ "," ~ type_expr ~ ">" }
+stream_type = { "stream" ~ "<" ~ type_expr ~ ">" }
+
+fn_type = { "fn" ~ "(" ~ type_list ~ ")" ~ "->" ~ type_expr }
+
+type_list = { (type_expr ~ ("," ~ type_expr)*)? }
+
+// ---------------------------------------------------------------------------
+// Blocks & statements
+// ---------------------------------------------------------------------------
+
+block = { "{" ~ statement* ~ "}" }
+
+statement = {
+    return_stmt
+  | for_stmt
+  | while_stmt
+  | if_stmt
+  | match_stmt
+  | var_decl
+  | assignment
+  | expression
+}
+
+var_decl = {
+    "mut"? ~ ident ~ ":=" ~ expression
+  | "mut"? ~ ident ~ ":" ~ type_expr ~ "=" ~ expression
+}
+
+assignment = { lvalue ~ "=" ~ expression }
+
+lvalue = { ident ~ (member_access | index_access)* }
+
+return_stmt = { "return" ~ expression }
+
+// ---------------------------------------------------------------------------
+// Control flow
+// ---------------------------------------------------------------------------
+
+if_stmt = {
+    "if" ~ expression ~ block ~ ("else" ~ (if_stmt | block))?
+}
+
+match_stmt = {
+    "match" ~ expression ~ "{" ~ match_arm+ ~ "}"
+}
+
+match_arm = { pattern ~ "=>" ~ (block | expression) }
+
+pattern = { pattern_single ~ ("|" ~ pattern_single)* }
+
+pattern_single = {
+    wildcard_pattern
+  | range_pattern
+  | constructor_pattern
+  | literal
+  | ident
+}
+
+wildcard_pattern     = { "_" }
+range_pattern        = { integer_literal ~ ".." ~ integer_literal }
+constructor_pattern  = { ident ~ "(" ~ ident ~ ")" }
+
+for_stmt = {
+    "for" ~ for_pattern ~ "in" ~ expression ~ block
+}
+
+for_pattern = {
+    "(" ~ ident ~ "," ~ ident ~ ")"
+  | ident
+}
+
+while_stmt = {
+    "while" ~ expression ~ block
+}
+
+// ---------------------------------------------------------------------------
+// Expressions (precedence climbing via layers)
+// ---------------------------------------------------------------------------
+
+expression = { try_expr | arrow_expr }
+
+arrow_expr = { or_expr ~ ("=>" ~ or_expr)? }
+
+try_expr = { "try" ~ expression }
+
+or_expr  = { and_expr ~ ("||" ~ and_expr)* }
+and_expr = { cmp_expr ~ ("&&" ~ cmp_expr)* }
+cmp_expr = { range_expr ~ (cmp_op ~ range_expr)? }
+cmp_op   = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
+
+range_expr = { add_expr ~ (".." ~ add_expr)? }
+
+add_expr  = { mul_expr ~ (add_op ~ mul_expr)* }
+add_op    = { "+" | "-" }
+
+mul_expr  = { unary_expr ~ (mul_op ~ unary_expr)* }
+mul_op    = { "*" | "/" | "%" }
+
+unary_expr = { unary_op ~ unary_expr | await_expr }
+unary_op   = { "!" | "-" }
+
+await_expr = { "await"? ~ postfix_expr }
+
+postfix_expr = { primary_expr ~ postfix_op* }
+
+postfix_op = {
+    call_args
+  | member_access
+  | index_access
+}
+
+call_args     = { "(" ~ arg_list ~ ")" }
+member_access = { "." ~ ident }
+index_access  = { "[" ~ expression ~ "]" }
+
+arg_list = { (argument ~ ("," ~ argument)*)? }
+
+argument = {
+    ident ~ ":" ~ expression   // named argument
+  | expression                 // positional argument
+}
+
+primary_expr = {
+    "(" ~ expression ~ ("," ~ expression)+ ~ ")"   // tuple expr
+  | "(" ~ expression ~ ")"                         // grouped
+  | lambda_expr
+  | entity_instantiation
+  | map_literal
+  | array_literal
+  | some_expr
+  | none_literal
+  | ok_expr
+  | err_expr
+  | literal
+  | "break"
+  | "continue"
+  | ident
+}
+
+// ---------------------------------------------------------------------------
+// Lambdas
+// ---------------------------------------------------------------------------
+
+lambda_expr = {
+    "fn" ~ "(" ~ param_list ~ ")" ~ ("->" ~ type_expr)? ~ (block | "=>" ~ expression)
+}
+
+// ---------------------------------------------------------------------------
+// Entity instantiation & collection literals
+// ---------------------------------------------------------------------------
+
+entity_instantiation = {
+    ident ~ "{" ~ field_init_list ~ "}"
+}
+
+field_init_list = { (field_init ~ ("," ~ field_init)* ~ ","?)? }
+
+field_init = { ident ~ ":" ~ expression }
+
+array_literal = { "[" ~ expr_list ~ "]" }
+
+map_literal = { "{" ~ (map_entry ~ ("," ~ map_entry)* ~ ","?)? ~ "}" }
+
+map_entry = { expression ~ ":" ~ expression }
+
+expr_list = { (expression ~ ("," ~ expression)* ~ ","?)? }
+
+// ---------------------------------------------------------------------------
+// Option/Result constructors
+// ---------------------------------------------------------------------------
+
+some_expr    = { "Some" ~ "(" ~ expression ~ ")" }
+none_literal = { "None" }
+ok_expr      = { "Ok" ~ "(" ~ expression ~ ")" }
+err_expr     = { "Err" ~ "(" ~ expression ~ ")" }
+
+// ---------------------------------------------------------------------------
+// Literals
+// ---------------------------------------------------------------------------
+
+literal = {
+    float_literal
+  | integer_literal
+  | bool_literal
+  | string_literal
+}
+
+integer_literal = @{ ("0x" ~ ASCII_HEX_DIGIT+) | ASCII_DIGIT+ }
+float_literal   = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+bool_literal    = { "true" | "false" }
+
+string_literal = @{ "\"" ~ string_inner ~ "\"" }
+string_inner   = @{ (escape_seq | !("\"" | "\\") ~ ANY)* }
+escape_seq     = @{ "\\" ~ ("\"" | "\\" | "n" | "t" | "r" | "0") }
+
+// ---------------------------------------------------------------------------
+// Identifiers & keywords
+// ---------------------------------------------------------------------------
+
+ident = @{
+    !keyword ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*
+}
+
+keyword = {
+    ( "async" | "await" | "bool" | "break" | "byte"
+    | "const" | "continue" | "contract" | "dynamic"
+    | "else" | "entity" | "evolve" | "false" | "float"
+    | "fn" | "for" | "goal" | "hybrid" | "if"
+    | "implement" | "import" | "in" | "int" | "intent"
+    | "match" | "module" | "mut" | "None" | "option"
+    | "private" | "reason" | "result" | "return" | "Some"
+    | "static" | "stream" | "string" | "struct" | "test"
+    | "true" | "try" | "type" | "use" | "while"
+    | "Ok" | "Err"
+    ) ~ !(ASCII_ALPHANUMERIC | "_")
+}

@@ -1,0 +1,7 @@
+/build/
+/compiler/target/
+/compiler/build/
+.cortex/
+*.wasm
+.DS_Store
+target/

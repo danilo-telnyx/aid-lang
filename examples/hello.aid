@@ -1,0 +1,17 @@
+module main
+
+use std.http
+
+fn main() {
+    server := http.new(port: 8080)
+
+    server.get("/") => fn(req) -> Response {
+        Response.text("Hello from AID")
+    }
+
+    server.get("/health") => fn(req) -> Response {
+        Response.json({ status: "ok", language: "AID", version: "0.1.0" })
+    }
+
+    server.start()
+}

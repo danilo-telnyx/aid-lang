@@ -1,0 +1,117 @@
+#!/bin/bash
+# ──────────────────────────────────────────
+# AID CLI — Proof of Concept
+# Usage: aid build [file.aid]
+#        aid run
+#        aid clean
+# ──────────────────────────────────────────
+
+set -e
+source "$HOME/.cargo/env" 2>/dev/null || true
+
+AID_ROOT="$(cd "$(dirname "$0")" && pwd)"
+BUILD_DIR="$AID_ROOT/build"
+RUST_DIR="$BUILD_DIR/rust-gen"
+TRANSPILER="$AID_ROOT/poc/transpile.mjs"
+DEFAULT_SOURCE="$AID_ROOT/examples/hello.aid"
+
+print_banner() {
+    echo ""
+    echo "  ╔═══════════════════════════════════════════╗"
+    echo "  ║   AID Compiler v0.1.0 (Proof of Concept)  ║"
+    echo "  ╚═══════════════════════════════════════════╝"
+    echo ""
+}
+
+cmd_build() {
+    local source="${1:-$DEFAULT_SOURCE}"
+    print_banner
+
+    echo "  Phase 1: Transpile (AID → Rust)"
+    echo "  ─────────────────────────────────"
+    node "$TRANSPILER" "$source" "$RUST_DIR"
+    echo ""
+
+    echo "  Phase 2: Compile (Rust → Binary)"
+    echo "  ─────────────────────────────────"
+    cd "$RUST_DIR"
+    cargo build --release 2>&1 | while IFS= read -r line; do
+        # Show only key lines
+        case "$line" in
+            *Compiling*|*Finished*|*Downloaded*|*error*|*warning*)
+                echo "    $line"
+                ;;
+        esac
+    done
+
+    BINARY="$RUST_DIR/target/release/aid-hello"
+    if [ -f "$BINARY" ]; then
+        SIZE=$(du -h "$BINARY" | cut -f1 | xargs)
+        echo ""
+        echo "  ✓ Build complete!"
+        echo "    Binary: $BINARY ($SIZE)"
+        echo "    Docs:   $BUILD_DIR/docs/api.md"
+        echo ""
+
+        # Copy binary to build root for easy access
+        cp "$BINARY" "$BUILD_DIR/aid-hello"
+    else
+        echo ""
+        echo "  ✗ Build failed — check errors above"
+        exit 1
+    fi
+}
+
+cmd_run() {
+    BINARY="$BUILD_DIR/aid-hello"
+    if [ ! -f "$BINARY" ]; then
+        echo "  No build found. Running 'aid build' first..."
+        echo ""
+        cmd_build "$@"
+    fi
+    echo "  Starting server..."
+    exec "$BINARY"
+}
+
+cmd_clean() {
+    echo "  Cleaning build artifacts..."
+    rm -rf "$BUILD_DIR"
+    echo "  ✓ Clean"
+}
+
+cmd_docs() {
+    DOCS="$BUILD_DIR/docs/api.md"
+    if [ -f "$DOCS" ]; then
+        cat "$DOCS"
+    else
+        echo "  No docs found. Run 'aid build' first."
+    fi
+}
+
+# ── Main ──────────────────────────────────
+case "${1:-help}" in
+    build)
+        shift
+        cmd_build "$@"
+        ;;
+    run)
+        shift
+        cmd_run "$@"
+        ;;
+    clean)
+        cmd_clean
+        ;;
+    docs)
+        cmd_docs
+        ;;
+    *)
+        echo "Usage: aid <command> [options]"
+        echo ""
+        echo "Commands:"
+        echo "  build [file.aid]   Transpile and compile"
+        echo "  run                Build (if needed) and run"
+        echo "  clean              Remove build artifacts"
+        echo "  docs               Show generated documentation"
+        echo ""
+        ;;
+esac
