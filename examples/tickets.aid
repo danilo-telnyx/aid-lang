@@ -33,6 +33,19 @@ reason detect_priority(text: string) -> string {
     fallback: "normal"
 }
 
+evolve classify_ticket {
+    track: true
+    retrain_every: 500
+    min_accuracy: 0.95
+    approve: true
+}
+
+evolve detect_priority {
+    track: true
+    retrain_every: 1000
+    min_accuracy: 0.90
+}
+
 fn main() {
     server := http.new(port: 8080)
 

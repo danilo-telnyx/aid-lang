@@ -492,6 +492,56 @@ fn extract_string_literal(expr: &Expression) -> Option<String> {
     }
 }
 
+// ─── Evolve Block Extraction ─────────────────────────────────────────────────
+
+struct EvolveBlockInfo {
+    target: String,
+    track: bool,
+    retrain_every: Option<i64>,
+    min_accuracy: Option<f64>,
+    approve: Option<bool>,
+}
+
+fn extract_evolve_blocks(program: &Program) -> Vec<EvolveBlockInfo> {
+    let mut blocks = Vec::new();
+    for decl in &program.declarations {
+        if let Declaration::EvolveBlock(eb) = decl {
+            blocks.push(EvolveBlockInfo {
+                target: eb.target.clone(),
+                track: eb.track,
+                retrain_every: eb.retrain_every,
+                min_accuracy: eb.min_accuracy,
+                approve: eb.approve,
+            });
+        }
+    }
+    blocks
+}
+
+/// Read telemetry JSONL file and return (call_count, distribution map)
+fn read_telemetry_stats(name: &str) -> Option<(usize, Vec<(String, usize)>)> {
+    let path = format!(".cortex/telemetry/{}.jsonl", name);
+    let content = fs::read_to_string(&path).ok()?;
+    let lines: Vec<&str> = content.lines().filter(|l| !l.trim().is_empty()).collect();
+    if lines.is_empty() {
+        return None;
+    }
+    let mut dist: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for line in &lines {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+            if let Some(output) = v.get("output").and_then(|o| o.as_str()) {
+                *dist.entry(output.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+    let total = lines.len();
+    let mut sorted: Vec<(String, usize)> = dist.into_iter().collect();
+    sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    Some((total, sorted))
+}
+
+use serde_json;
+
 /// Extract keywords from a text string (words >= 3 chars, lowercased, no stop words)
 fn extract_keywords(text: &str) -> Vec<String> {
     let stop_words = [
@@ -670,18 +720,98 @@ fn reason_block_for_route(path: &str, blocks: &[ReasonBlockInfo]) -> Option<Stri
     None
 }
 
+fn generate_telemetry_wrapper(block_name: &str, input_param: &str) -> String {
+    let mut code = String::new();
+    code.push_str(&format!("fn {name}({param}: &str) -> String {{\n", name = block_name, param = input_param));
+    code.push_str(&format!("    let result = {name}_logic({param});\n", name = block_name, param = input_param));
+    code.push_str("\n    // Telemetry logging\n");
+    code.push_str(&format!("    if let Ok(json) = serde_json::to_string(&serde_json::json!({{\n"));
+    code.push_str(&format!("        \"function\": \"{}\",\n", block_name));
+    code.push_str(&format!("        \"input\": {},\n", input_param));
+    code.push_str("        \"output\": &result,\n");
+    code.push_str("        \"timestamp\": chrono::Utc::now().to_rfc3339()\n");
+    code.push_str("    })) {\n");
+    code.push_str("        let _ = std::fs::create_dir_all(\".cortex/telemetry\");\n");
+    code.push_str(&format!("        if let Ok(mut f) = std::fs::OpenOptions::new()\n"));
+    code.push_str("            .create(true)\n");
+    code.push_str("            .append(true)\n");
+    code.push_str(&format!("            .open(\".cortex/telemetry/{}.jsonl\")\n", block_name));
+    code.push_str("        {\n");
+    code.push_str("            use std::io::Write;\n");
+    code.push_str("            let _ = writeln!(f, \"{}\", json);\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n\n");
+    code.push_str("    result\n");
+    code.push_str("}\n");
+    code
+}
+
+fn generate_telemetry_endpoint(evolve_blocks: &[EvolveBlockInfo]) -> String {
+    let mut code = String::new();
+    code.push_str("async fn handle_telemetry() -> impl IntoResponse {\n");
+    code.push_str("    let mut stats = serde_json::Map::new();\n");
+    for eb in evolve_blocks {
+        code.push_str(&format!("    // Telemetry for {}\n", eb.target));
+        code.push_str(&format!("    if let Ok(content) = std::fs::read_to_string(\".cortex/telemetry/{}.jsonl\") {{\n", eb.target));
+        code.push_str("        let mut dist: std::collections::HashMap<String, usize> = std::collections::HashMap::new();\n");
+        code.push_str("        let mut count = 0usize;\n");
+        code.push_str("        for line in content.lines().filter(|l| !l.trim().is_empty()) {\n");
+        code.push_str("            count += 1;\n");
+        code.push_str("            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {\n");
+        code.push_str("                if let Some(output) = v.get(\"output\").and_then(|o| o.as_str()) {\n");
+        code.push_str("                    *dist.entry(output.to_string()).or_insert(0) += 1;\n");
+        code.push_str("                }\n");
+        code.push_str("            }\n");
+        code.push_str("        }\n");
+        code.push_str(&format!("        stats.insert(\"{}\".to_string(), serde_json::json!({{\"calls\": count, \"distribution\": dist}}));\n", eb.target));
+        code.push_str("    }\n");
+    }
+    code.push_str("    Json(serde_json::Value::Object(stats)).into_response()\n");
+    code.push_str("}\n");
+    code
+}
+
 fn generate_http_project(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo]) -> (String, String) {
+    generate_http_project_with_evolve(project_name, info, reason_blocks, &[])
+}
+
+fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo], evolve_blocks: &[EvolveBlockInfo]) -> (String, String) {
+    let has_evolve = !evolve_blocks.is_empty();
+    let evolved_targets: Vec<&str> = evolve_blocks.iter().map(|e| e.target.as_str()).collect();
+
     let mut main_rs = String::new();
     main_rs.push_str("// Generated by the AID compiler — do not edit.\n\n");
     main_rs.push_str("use axum::{Router, routing, Json, response::IntoResponse};\n");
-    if !reason_blocks.is_empty() {
+    if !reason_blocks.is_empty() || has_evolve {
         main_rs.push_str("use serde_json;\n");
     }
     main_rs.push_str("\n");
 
-    // Emit reason block functions
+    // Emit reason block functions (with telemetry wrappers if evolved)
     for block in reason_blocks {
-        main_rs.push_str(&generate_reason_function(block));
+        let is_evolved = evolved_targets.contains(&block.name.as_str());
+        if is_evolved {
+            // Rename the function to _logic
+            let mut logic_code = generate_reason_function(block);
+            logic_code = logic_code.replace(
+                &format!("fn {}(", block.name),
+                &format!("fn {}_logic(", block.name),
+            );
+            main_rs.push_str(&logic_code);
+            main_rs.push_str("\n");
+            // Add the telemetry wrapper
+            let input_param = block.params.first().map(|(n, _)| n.as_str()).unwrap_or("text");
+            main_rs.push_str(&generate_telemetry_wrapper(&block.name, input_param));
+            main_rs.push_str("\n");
+        } else {
+            main_rs.push_str(&generate_reason_function(block));
+            main_rs.push_str("\n");
+        }
+    }
+
+    // Telemetry endpoint
+    if has_evolve {
+        main_rs.push_str(&generate_telemetry_endpoint(evolve_blocks));
         main_rs.push_str("\n");
     }
 
@@ -718,6 +848,9 @@ fn generate_http_project(project_name: &str, info: &HttpServerInfo, reason_block
             route.path, route.method, route.handler_name
         ));
     }
+    if has_evolve {
+        main_rs.push_str("        .route(\"/telemetry\", routing::get(handle_telemetry))\n");
+    }
     main_rs.push_str("    ;\n\n");
     main_rs.push_str(&format!(
         "    let listener = tokio::net::TcpListener::bind(\"0.0.0.0:{}\").await.unwrap();\n",
@@ -730,6 +863,7 @@ fn generate_http_project(project_name: &str, info: &HttpServerInfo, reason_block
     main_rs.push_str("    axum::serve(listener, app).await.unwrap();\n");
     main_rs.push_str("}\n");
 
+    let chrono_dep = if has_evolve { "\nchrono = \"0.4\"\n" } else { "" };
     let cargo_toml = format!(
         r#"[package]
 name = "{}"
@@ -741,8 +875,8 @@ axum = "0.8"
 tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
-"#,
-        project_name
+{}"#,
+        project_name, chrono_dep
     );
 
     (main_rs, cargo_toml)
@@ -819,8 +953,42 @@ fn handle_build(file: Option<PathBuf>, release: bool, no_docs: bool, verbose: bo
         );
     }
 
+    let evolve_blocks = extract_evolve_blocks(&program);
+    if !evolve_blocks.is_empty() {
+        println!(
+            "  {} Evolve: {} blocks tracked",
+            "✓".green().bold(),
+            evolve_blocks.len()
+        );
+
+        // Check for existing telemetry data
+        let mut has_telemetry = false;
+        for eb in &evolve_blocks {
+            if let Some((count, dist)) = read_telemetry_stats(&eb.target) {
+                if !has_telemetry {
+                    println!();
+                    println!("  {} Evolve telemetry:", "⚡".yellow().bold());
+                    has_telemetry = true;
+                }
+                let dist_str: Vec<String> = dist.iter().map(|(k, v)| {
+                    let pct = (*v as f64 / count as f64 * 100.0) as u32;
+                    format!("{}: {}%", k, pct)
+                }).collect();
+                println!(
+                    "    {}: {} calls ({})",
+                    eb.target,
+                    count,
+                    dist_str.join(", ")
+                );
+            }
+        }
+        if has_telemetry {
+            println!();
+        }
+    }
+
     let (main_rs, cargo_toml) = if let Some(info) = extract_http_server(&program) {
-        generate_http_project(&project_name, &info, &reason_blocks)
+        generate_http_project_with_evolve(&project_name, &info, &reason_blocks, &evolve_blocks)
     } else {
         println!(
             "  {} Transpile — no supported pattern found in source",
