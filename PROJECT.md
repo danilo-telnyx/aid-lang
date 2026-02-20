@@ -82,7 +82,8 @@
 - `GET /telemetry` → live stats (call counts + output distribution)
 - `contract` blocks → English rules parsed into type-safe validators, /validate endpoint
 - Auto-docs generated at every build
-- Full CLI: build, run, clean, docs, fmt, lint, cortex, rollback, evolve
+- Full CLI: build, run, new, clean, docs, fmt, lint, cortex, rollback, evolve
+- `aid new <name>` with `--template api|minimal` — project scaffolding
 - Intent routing: compiler auto-discovers handlers by naming convention, builds route tables, /api/routes endpoint
 - WASM compilation: `aid build --target wasm` → wasm32-wasip1 binaries
 - `std.env` module: env.get, env.require, env.load_dotenv, env.all → Rust std::env + dotenvy
@@ -129,6 +130,7 @@ cargo build --release
 | 9 | std.db module | ✅ Done | — | db.connect, db.execute, db.query, db.migrate (SQLite) |
 | 10 | std.auth module | ✅ Done | — | auth.jwt_sign, auth.jwt_verify, auth.hash_password, auth.verify_password, auth.api_key, auth.middleware (JWT + bcrypt) |
 | 11 | std.html module | ✅ Done | — | html.template, html.serve_static, html.render, html.redirect |
+| 15 | `aid new` scaffolding | ✅ Done | — | `aid new <name> --template api\|minimal` project generator |
 
 ### v0.2.0 — Package System Design
 

@@ -2,6 +2,25 @@
 
 ## v0.2.0 — 2026-02-20
 
+### 🆕 `aid new` Project Scaffolding
+
+#### New Features
+- **`aid new <project-name>`** — create a new AID project with all files ready to go
+- **`aid new <name> --template api`** (default) — REST API scaffold with templates, static files, migrations
+- **`aid new <name> --template minimal`** — minimal project with just main.aid
+- Generated `main.aid` uses `std.http`, `std.env`, and `std.html` — a real starting point
+- Auto-creates: `main.aid`, `.env`, `.env.example`, `.gitignore`, `README.md`
+- API template includes: `templates/index.html`, `public/style.css`, `migrations/001_init.sql`
+- 7 new unit tests for project scaffolding
+
+#### Templates
+| Template | Files | Description |
+|----------|-------|-------------|
+| `api` | 8 files | Full REST API with HTML templates, static assets, migrations |
+| `minimal` | 5 files | Just the essentials — main.aid + config files |
+
+---
+
 ### 🔐 std.auth Module (JWT + Bcrypt + Middleware)
 
 #### New Features

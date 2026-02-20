@@ -59,6 +59,35 @@ $ aid run
 
 ---
 
+## Quick Start: `aid new`
+
+```bash
+# Create a new project
+$ aid new myapp
+  ✓ main.aid
+  ✓ .env
+  ✓ .env.example
+  ✓ .gitignore
+  ✓ README.md
+  ✓ templates/index.html
+  ✓ public/style.css
+  ✓ migrations/001_init.sql
+  ✨ Project 'myapp' created!
+
+$ cd myapp
+$ aid build main.aid
+$ ./build/aid-main
+
+# Or create a minimal project
+$ aid new myapp --template minimal
+```
+
+Templates:
+- **`api`** (default) — REST API with HTML templates, static files, and migrations
+- **`minimal`** — just `main.aid` and config files
+
+---
+
 ## The Killer Feature: `reason` Blocks
 
 Declare AI-powered decisions directly in your code:
@@ -142,6 +171,7 @@ The compiler reads the English rules and generates type-safe validators. No boil
 | 🗄️ **std.db** | SQLite database — connect, query, execute, migrate | ✅ Working |
 | 🌐 **std.html** | HTML templates, static files, render, redirect | ✅ Working |
 | 🔐 **std.auth** | JWT tokens, bcrypt hashing, API keys, middleware | ✅ Working |
+| 🆕 **`aid new`** | Project scaffolding with templates (api, minimal) | ✅ Working |
 | 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
 
 ---
