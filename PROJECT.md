@@ -47,7 +47,8 @@
 │   ├── wasm-module.aid                  # WASM compilation target
 │   ├── env-demo.aid                     # std.env demo (.env + config-driven server)
 │   ├── database.aid                     # std.db demo (SQLite + HTTP + reason blocks)
-│   └── html-demo.aid                    # std.html demo (templates + static files)
+│   ├── html-demo.aid                    # std.html demo (templates + static files)
+│   └── auth-demo.aid                    # std.auth demo (JWT + bcrypt + API keys)
 ├── poc/transpile.mjs                    # PoC transpiler (Node.js, keep for reference)
 ├── aid                                  # PoC CLI wrapper (bash)
 ├── compiler/                            # ⭐ Real compiler (Rust)
@@ -58,6 +59,7 @@
 │       ├── parser/mod.rs                # pest → AST bridge
 │       ├── ast/mod.rs                   # AST type definitions
 │       ├── transpiler/mod.rs            # AST → Rust code generation
+│       ├── codegen/auth.rs              # std.auth → JWT/bcrypt/middleware mapping
 │       ├── codegen/http.rs              # std.http → Axum mapping
 │       ├── codegen/env.rs               # std.env → Rust env/dotenvy mapping
 │       ├── codegen/db.rs               # std.db → rusqlite mapping
@@ -85,7 +87,8 @@
 - `std.env` module: env.get, env.require, env.load_dotenv, env.all → Rust std::env + dotenvy
 - `std.db` module: db.connect, db.execute, db.query, db.migrate → Rust rusqlite with AppState
 - `std.html` module: html.template, html.serve_static, html.render, html.redirect → Axum HTML + tower-http
-- 9 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid, database.aid, html-demo.aid
+- `std.auth` module: auth.jwt_sign, auth.jwt_verify, auth.hash_password, auth.verify_password, auth.api_key, auth.middleware → Rust jsonwebtoken + bcrypt
+- 10 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid, database.aid, html-demo.aid, auth-demo.aid
 
 ## How to Build & Test
 
@@ -123,7 +126,7 @@ cargo build --release
 
 | 8 | std.env module | ✅ Done | — | env.get, env.require, env.load_dotenv, env.all |
 | 9 | std.db module | ✅ Done | — | db.connect, db.execute, db.query, db.migrate (SQLite) |
-| 10 | std.auth module | 🔄 In Progress | — | auth.jwt_verify, auth.hash_password, auth.require_role |
+| 10 | std.auth module | ✅ Done | — | auth.jwt_sign, auth.jwt_verify, auth.hash_password, auth.verify_password, auth.api_key, auth.middleware (JWT + bcrypt) |
 | 11 | std.html module | ✅ Done | — | html.template, html.serve_static, html.render, html.redirect |
 
 ## Future Roadmap (Beyond Issues)

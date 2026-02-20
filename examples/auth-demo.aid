@@ -1,0 +1,76 @@
+// AID Language — std.auth Demo
+// JWT authentication, password hashing, and API key protection
+
+module auth_demo
+
+use std.http
+use std.auth
+
+// User entity for login
+entity User {
+    username: string
+    password_hash: string
+    role: string = "user"
+}
+
+// Login handler — accepts username/password, returns JWT
+fn handle_login(username: string, password: string) -> string {
+    // In a real app, you'd look up the user and verify the password
+    // For demo: hash the password and create a JWT
+    hash := auth.hash_password(password)
+    token := auth.jwt_sign("{\"sub\":\"user1\",\"role\":\"admin\"}", "my_jwt_secret_key")
+    return token
+}
+
+// Protected endpoint — requires valid JWT
+fn handle_protected() -> string {
+    return "This is a protected resource"
+}
+
+// API key protected endpoint
+fn handle_api_data() -> string {
+    return "Sensitive API data"
+}
+
+// Password management
+fn handle_register(username: string, password: string) -> string {
+    hash := auth.hash_password(password)
+    return hash
+}
+
+fn main() {
+    server := http.new(port: 8080)
+
+    // Public endpoint — login returns JWT token
+    server.post("/login") => fn(req) -> Response {
+        Response.json({
+            token: auth.jwt_sign("{\"sub\":\"user1\",\"role\":\"admin\"}", "my_jwt_secret_key"),
+            message: "Login successful"
+        })
+    }
+
+    // Protected endpoint — requires Bearer token
+    server.get("/protected") => fn(req) -> Response {
+        Response.json({
+            data: "This is protected content",
+            status: "authenticated"
+        })
+    }
+
+    // Register endpoint — hash password
+    server.post("/register") => fn(req) -> Response {
+        Response.json({
+            message: "User registered",
+            hash: auth.hash_password("demo_password")
+        })
+    }
+
+    // Public health check
+    server.get("/") => fn(req) -> Response {
+        Response.json({
+            service: "AID Auth Demo",
+            version: "1.0.0",
+            endpoints: "/login, /protected, /register"
+        })
+    }
+}

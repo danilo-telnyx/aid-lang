@@ -140,6 +140,7 @@ The compiler reads the English rules and generates type-safe validators. No boil
 | 🌍 **std.env** | Environment variables, .env files, config-driven servers | ✅ Working |
 | 🗄️ **std.db** | SQLite database — connect, query, execute, migrate | ✅ Working |
 | 🌐 **std.html** | HTML templates, static files, render, redirect | ✅ Working |
+| 🔐 **std.auth** | JWT tokens, bcrypt hashing, API keys, middleware | ✅ Working |
 | 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
 
 ---
@@ -206,6 +207,43 @@ Operations:
 - `html.redirect(url)` — HTTP redirect
 
 Template syntax: `{{variable}}`, `{{#each items}}...{{/each}}`, `{{#if condition}}...{{/if}}`
+
+---
+
+## Authentication: `std.auth`
+
+```aid
+module auth_demo
+use std.http
+use std.auth
+
+fn main() {
+    server := http.new(port: 8080)
+
+    server.post("/login") => fn(req) -> Response {
+        Response.json({
+            token: auth.jwt_sign("{\"sub\":\"user1\",\"role\":\"admin\"}", "my_secret"),
+            message: "Login successful"
+        })
+    }
+
+    server.post("/register") => fn(req) -> Response {
+        Response.json({
+            hash: auth.hash_password("user_password")
+        })
+    }
+}
+```
+
+Operations:
+- `auth.jwt_sign(claims, secret)` — Generate JWT token with auto-expiry
+- `auth.jwt_verify(token, secret)` — Verify and decode JWT
+- `auth.hash_password(password)` — Bcrypt hash with default cost
+- `auth.verify_password(password, hash)` — Bcrypt verify
+- `auth.api_key(header_name)` — Extract API key from request header
+- `auth.middleware(handler)` — Wrap routes with JWT auth middleware
+
+The compiler generates code using the `jsonwebtoken` and `bcrypt` Rust crates. Dependencies are auto-detected and only included when used.
 
 ---
 
@@ -297,6 +335,7 @@ cd compiler && cargo build --release
 | Env Demo | std.env, .env loading, config-driven server | [`examples/env-demo.aid`](examples/env-demo.aid) |
 | Database | std.db, SQLite, query + serve via HTTP, reason blocks | [`examples/database.aid`](examples/database.aid) |
 | HTML Demo | std.html, templates, static files, redirects | [`examples/html-demo.aid`](examples/html-demo.aid) |
+| Auth Demo | std.auth, JWT tokens, bcrypt hashing, API keys | [`examples/auth-demo.aid`](examples/auth-demo.aid) |
 
 ---
 

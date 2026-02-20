@@ -2,6 +2,33 @@
 
 ## v0.2.0 — 2026-02-20
 
+### 🔐 std.auth Module (JWT + Bcrypt + Middleware)
+
+#### New Features
+- **`use std.auth`** — import the authentication module
+- **`auth.jwt_sign(claims, secret)`** — generate JWT tokens with auto-expiry (1h default)
+- **`auth.jwt_verify(token, secret)`** — verify and decode JWT tokens
+- **`auth.hash_password(password)`** — bcrypt hash with default cost
+- **`auth.verify_password(password, hash)`** — bcrypt password verification
+- **`auth.api_key(header_name)`** — extract API key from request headers
+- **`auth.middleware(handler)`** — wrap routes with JWT auth middleware
+- New codegen module: `compiler/src/codegen/auth.rs` with 14 unit tests
+- New example: `examples/auth-demo.aid` — login, registration, protected endpoints
+- Auth calls auto-extracted as local variables when used inside `Response.json()`
+
+#### Architecture
+- JWT operations use the `jsonwebtoken` Rust crate (v9)
+- Password hashing uses the `bcrypt` Rust crate (v0.15)
+- Auth middleware generates Axum `from_fn` middleware with Bearer token extraction
+- API key middleware generates header-based auth checking
+- Dependencies auto-detected: only `jsonwebtoken` and/or `bcrypt` added when used
+
+#### Dependencies
+- `jsonwebtoken = "9"` added when JWT operations are used
+- `bcrypt = "0.15"` added when password hashing is used
+
+---
+
 ### 🌐 std.html Module (Templates + Static Files)
 
 #### New Features

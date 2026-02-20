@@ -523,6 +523,14 @@ fn aid_expr_to_rust(expr: &Expression) -> String {
             format!("format!(\"{{}}{{}}\", {}, {})", l, r)
         }
         Expression::Call { callee, args, .. } => {
+            // Check for auth module calls first
+            if let Some(code) = auth_codegen::generate_auth_call(callee, args) {
+                return code;
+            }
+            // Check for env module calls
+            if let Some(code) = env_codegen::generate_env_call(callee, args) {
+                return code;
+            }
             if let Expression::MemberAccess { object, member, .. } = callee.as_ref() {
                 let obj = aid_expr_to_rust(object);
                 if member == "to_string" {
@@ -562,11 +570,21 @@ fn expr_to_handler_rust(expr: &Expression) -> String {
                         }
                         "json" => {
                             if let Some(arg) = args.first() {
-                                let json_str = expr_to_json(&arg.value);
-                                return format!(
-                                    "    Json(serde_json::json!({})).into_response()",
-                                    json_str
-                                );
+                                // Extract auth/complex calls as local variables
+                                let mut prelude = String::new();
+                                let mut var_counter = 0usize;
+                                let json_str = expr_to_json_with_prelude(&arg.value, &mut prelude, &mut var_counter);
+                                if prelude.is_empty() {
+                                    return format!(
+                                        "    Json(serde_json::json!({})).into_response()",
+                                        json_str
+                                    );
+                                } else {
+                                    return format!(
+                                        "{}\n    Json(serde_json::json!({})).into_response()",
+                                        prelude, json_str
+                                    );
+                                }
                             }
                         }
                         _ => {}
@@ -576,6 +594,45 @@ fn expr_to_handler_rust(expr: &Expression) -> String {
         }
     }
     "    todo!()".to_string()
+}
+
+/// Convert expression to JSON macro format, extracting complex (auth/env) calls
+/// into local variables in the prelude.
+fn expr_to_json_with_prelude(expr: &Expression, prelude: &mut String, counter: &mut usize) -> String {
+    match expr {
+        Expression::MapLiteral { entries, .. } => {
+            let fields: Vec<String> = entries
+                .iter()
+                .map(|(k, v)| {
+                    let key = match k {
+                        Expression::Identifier { name, .. } => format!("\"{}\"", name),
+                        Expression::Literal { value: Literal::String(s), .. } => format!("\"{}\"", s),
+                        _ => "\"?\"".to_string(),
+                    };
+                    let val = expr_to_json_with_prelude(v, prelude, counter);
+                    format!("{}: {}", key, val)
+                })
+                .collect();
+            format!("{{{}}}", fields.join(", "))
+        }
+        Expression::Call { callee, args, .. } => {
+            // Check for auth/env module calls — these need to be pre-computed
+            if let Some(code) = auth_codegen::generate_auth_call(callee, args) {
+                let var_name = format!("__auth_val_{}", counter);
+                *counter += 1;
+                prelude.push_str(&format!("    let {} = {};\n", var_name, code));
+                return var_name;
+            }
+            if let Some(code) = env_codegen::generate_env_call(callee, args) {
+                let var_name = format!("__env_val_{}", counter);
+                *counter += 1;
+                prelude.push_str(&format!("    let {} = {};\n", var_name, code));
+                return var_name;
+            }
+            aid_expr_to_rust(expr)
+        }
+        _ => expr_to_json(expr),
+    }
 }
 
 fn expr_to_json(expr: &Expression) -> String {
@@ -618,6 +675,17 @@ fn expr_to_json(expr: &Expression) -> String {
         Expression::ArrayLiteral { elements, .. } => {
             let items: Vec<String> = elements.iter().map(|e| expr_to_json(e)).collect();
             format!("[{}]", items.join(", "))
+        }
+        Expression::Call { callee, args, .. } => {
+            // Handle auth/env module calls inline
+            if let Some(code) = auth_codegen::generate_auth_call(callee, args) {
+                return code;
+            }
+            if let Some(code) = env_codegen::generate_env_call(callee, args) {
+                return code;
+            }
+            // Generic call
+            aid_expr_to_rust(expr)
         }
         _ => "null".to_string(),
     }
@@ -1361,20 +1429,25 @@ fn is_env_call(expr: &Expression) -> bool {
 fn generate_http_project(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo]) -> (String, String) {
     generate_http_project_with_evolve(project_name, info, reason_blocks, &[], &[], &Program {
         module: String::new(), imports: vec![], declarations: vec![], span: Span::default(),
-    }, &[], &[], &[])
+    }, &[], &[], &[], &auth_codegen::AuthUsage::default())
 }
 
 fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo], evolve_blocks: &[EvolveBlockInfo], contracts: &[ContractInfo], program: &Program, intent_blocks: &[IntentBlock], intent_routes: &[IntentRoute], db_ops: &[DbOperation], auth_usage: &auth_codegen::AuthUsage) -> (String, String) {
     let has_evolve = !evolve_blocks.is_empty();
     let has_db = !db_ops.is_empty();
+    let has_auth = auth_usage.uses_auth;
     let evolved_targets: Vec<&str> = evolve_blocks.iter().map(|e| e.target.as_str()).collect();
     let env_usage = env_codegen::scan_env_usage(program);
 
     let mut main_rs = String::new();
     main_rs.push_str("// Generated by the AID compiler — do not edit.\n\n");
-    main_rs.push_str("use axum::{Router, routing, Json, response::IntoResponse};\n");
+    if has_auth && auth_usage.uses_middleware {
+        main_rs.push_str("use axum::{Router, routing, Json, response::IntoResponse, middleware};\n");
+    } else {
+        main_rs.push_str("use axum::{Router, routing, Json, response::IntoResponse};\n");
+    }
     let has_contracts = !contracts.is_empty();
-    if !reason_blocks.is_empty() || has_evolve || has_contracts || has_db {
+    if !reason_blocks.is_empty() || has_evolve || has_contracts || has_db || has_auth {
         main_rs.push_str("use serde_json;\n");
     }
     main_rs.push_str("\n");
@@ -1718,6 +1791,14 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
         }
     }
 
+    // Emit auth middleware functions if needed
+    if has_auth && auth_usage.uses_middleware {
+        if let Some(secret) = extract_jwt_secret(program) {
+            main_rs.push_str(&auth_codegen::generate_auth_middleware(&secret));
+            main_rs.push_str("\n\n");
+        }
+    }
+
     main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
 
     // Emit env setup code (dotenv loading, env var reads) before server setup
@@ -1805,6 +1886,9 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
     if has_contracts {
         main_rs.push_str("        .route(\"/validate\", routing::post(handle_validate))\n");
     }
+    if has_auth && auth_usage.uses_middleware {
+        main_rs.push_str("        .route_layer(middleware::from_fn(auth_middleware))\n");
+    }
     if has_db {
         main_rs.push_str("        .with_state(state)\n");
     }
@@ -1831,6 +1915,8 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
     let chrono_dep = if has_evolve { "chrono = \"0.4\"\n" } else { "" };
     let dotenvy_dep = if env_usage.uses_dotenv { "dotenvy = \"0.15\"\n" } else { "" };
     let rusqlite_dep = if has_db { "rusqlite = { version = \"0.31\", features = [\"bundled\"] }\n" } else { "" };
+    let jwt_dep = if auth_usage.uses_jwt { "jsonwebtoken = \"9\"\n" } else { "" };
+    let bcrypt_dep = if auth_usage.uses_bcrypt { "bcrypt = \"0.15\"\n" } else { "" };
     let cargo_toml = format!(
         r#"[package]
 name = "{}"
@@ -1842,8 +1928,8 @@ axum = "0.8"
 tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
-{}{}{}"#,
-        project_name, chrono_dep, dotenvy_dep, rusqlite_dep
+{}{}{}{}{}"#,
+        project_name, chrono_dep, dotenvy_dep, rusqlite_dep, jwt_dep, bcrypt_dep
     );
 
     (main_rs, cargo_toml)
@@ -2505,7 +2591,7 @@ fn handle_build(file: Option<PathBuf>, release: bool, no_docs: bool, verbose: bo
                 );
                 std::process::exit(1);
             }
-            generate_http_project_with_evolve(&project_name, &info, &reason_blocks, &evolve_blocks, &contracts, &program, &intent_blocks, &all_intent_routes, &db_ops)
+            generate_http_project_with_evolve(&project_name, &info, &reason_blocks, &evolve_blocks, &contracts, &program, &intent_blocks, &all_intent_routes, &db_ops, &auth_usage)
         } else {
             println!(
                 "  {} Transpile — no supported pattern found in source",

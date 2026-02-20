@@ -120,13 +120,18 @@ pub fn generate_auth_call(callee: &Expression, args: &[Argument]) -> Option<Stri
 
     match method.as_str() {
         "jwt_sign" => {
-            let claims = extract_string_arg(args, 0).unwrap_or_else(|| "claims_json".to_string());
+            let (claims, claims_is_literal) = extract_arg_info(args, 0).unwrap_or(("claims_json".to_string(), false));
             let secret = extract_string_arg(args, 1)?;
+            let claims_expr = if claims_is_literal {
+                format!("\"{}\"", claims.replace('"', "\\\""))
+            } else {
+                claims.clone()
+            };
             Some(format!(
                 r#"{{
         let key = jsonwebtoken::EncodingKey::from_secret("{secret}".as_bytes());
         let header = jsonwebtoken::Header::default();
-        let claims_val: serde_json::Value = serde_json::from_str(&{claims}).unwrap_or(serde_json::json!({{}}));
+        let claims_val: serde_json::Value = serde_json::from_str({claims_expr}).unwrap_or(serde_json::json!({{}}));
         let mut claims_map = std::collections::HashMap::new();
         if let serde_json::Value::Object(m) = claims_val {{
             for (k, v) in m {{
@@ -144,41 +149,53 @@ pub fn generate_auth_call(callee: &Expression, args: &[Argument]) -> Option<Stri
         jsonwebtoken::encode(&header, &claims_map, &key).expect("JWT encoding failed")
     }}"#,
                 secret = secret,
-                claims = claims,
+                claims_expr = claims_expr,
             ))
         }
         "jwt_verify" => {
-            let token = extract_string_arg(args, 0).unwrap_or_else(|| "token".to_string());
+            let (token, token_is_literal) = extract_arg_info(args, 0).unwrap_or(("token".to_string(), false));
             let secret = extract_string_arg(args, 1)?;
+            let token_expr = if token_is_literal {
+                format!("\"{}\"", token.replace('"', "\\\""))
+            } else {
+                format!("&{}", token)
+            };
             Some(format!(
                 r#"{{
         let key = jsonwebtoken::DecodingKey::from_secret("{secret}".as_bytes());
         let mut validation = jsonwebtoken::Validation::default();
         validation.validate_exp = true;
         validation.required_spec_claims.clear();
-        match jsonwebtoken::decode::<std::collections::HashMap<String, serde_json::Value>>(&{token}, &key, &validation) {{
+        match jsonwebtoken::decode::<std::collections::HashMap<String, serde_json::Value>>({token_expr}, &key, &validation) {{
             Ok(data) => Ok(serde_json::to_string(&data.claims).unwrap_or_default()),
             Err(e) => Err(format!("JWT verification failed: {{}}", e)),
         }}
     }}"#,
                 secret = secret,
-                token = token,
+                token_expr = token_expr,
             ))
         }
         "hash_password" => {
-            let password = extract_string_arg(args, 0).unwrap_or_else(|| "password".to_string());
+            let (password, is_literal) = extract_arg_info(args, 0).unwrap_or(("password".to_string(), false));
+            let pw_expr = if is_literal {
+                format!("\"{}\"", password.replace('"', "\\\""))
+            } else {
+                format!("&{}", password)
+            };
             Some(format!(
-                r#"bcrypt::hash({password}, bcrypt::DEFAULT_COST).expect("bcrypt hash failed")"#,
-                password = if is_literal_string(&password) { format!("\"{}\"", password) } else { password },
+                r#"bcrypt::hash({pw_expr}, bcrypt::DEFAULT_COST).expect("bcrypt hash failed")"#,
+                pw_expr = pw_expr,
             ))
         }
         "verify_password" => {
-            let password = extract_string_arg(args, 0).unwrap_or_else(|| "password".to_string());
-            let hash = extract_string_arg(args, 1).unwrap_or_else(|| "hash".to_string());
+            let (password, pw_lit) = extract_arg_info(args, 0).unwrap_or(("password".to_string(), false));
+            let (hash, hash_lit) = extract_arg_info(args, 1).unwrap_or(("hash".to_string(), false));
+            let pw_expr = if pw_lit { format!("\"{}\"", password) } else { format!("&{}", password) };
+            let hash_expr = if hash_lit { format!("\"{}\"", hash) } else { format!("&{}", hash) };
             Some(format!(
-                r#"bcrypt::verify({password}, &{hash}).unwrap_or(false)"#,
-                password = if is_literal_string(&password) { format!("\"{}\"", password) } else { password },
-                hash = hash,
+                r#"bcrypt::verify({pw_expr}, {hash_expr}).unwrap_or(false)"#,
+                pw_expr = pw_expr,
+                hash_expr = hash_expr,
             ))
         }
         "api_key" => {
@@ -283,9 +300,15 @@ fn extract_string_arg(args: &[Argument], index: usize) -> Option<String> {
     })
 }
 
-fn is_literal_string(s: &str) -> bool {
-    // Check if the string looks like a literal (not a variable name)
-    s.contains(' ') || s.contains('@') || s.len() > 30
+/// Extract a string arg and whether it's a literal (true) or identifier (false).
+fn extract_arg_info(args: &[Argument], index: usize) -> Option<(String, bool)> {
+    args.get(index).and_then(|a| {
+        match &a.value {
+            Expression::Literal { value: Literal::String(s), .. } => Some((s.clone(), true)),
+            Expression::Identifier { name, .. } => Some((name.clone(), false)),
+            _ => None,
+        }
+    })
 }
 
 // ---------------------------------------------------------------------------
