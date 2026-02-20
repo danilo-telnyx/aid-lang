@@ -1538,12 +1538,31 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
         }
     }
 
+    // Emit Cortex V1 helper function if there are reason blocks
+    if !reason_blocks.is_empty() {
+        let cortex_config = crate::codegen::cortex::CortexCodegenConfig::default();
+        main_rs.push_str(&crate::codegen::cortex::generate_cortex_infer_function(&cortex_config));
+        main_rs.push_str("\n");
+    }
+
     // Emit reason block functions (with telemetry wrappers if evolved)
     for block in reason_blocks {
         let is_evolved = evolved_targets.contains(&block.name.as_str());
+        // Convert to CortexCodegenConfig-compatible spec
+        let cortex_spec = crate::codegen::cortex::ReasonBlockSpec {
+            name: block.name.clone(),
+            params: block.params.clone(),
+            return_type: block.return_type.clone(),
+            goal: block.goal.clone(),
+            constraints: block.constraints.clone(),
+            examples: block.examples.clone(),
+            fallback: block.fallback.clone(),
+        };
+        let cortex_config = crate::codegen::cortex::CortexCodegenConfig::default();
+
         if is_evolved {
-            // Rename the function to _logic
-            let mut logic_code = generate_reason_function(block);
+            // Rename the function to _logic with Cortex support
+            let mut logic_code = crate::codegen::cortex::generate_cortex_reason_function(&cortex_spec, &cortex_config);
             logic_code = logic_code.replace(
                 &format!("fn {}(", block.name),
                 &format!("fn {}_logic(", block.name),
@@ -1555,7 +1574,7 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
             main_rs.push_str(&generate_telemetry_wrapper(&block.name, input_param));
             main_rs.push_str("\n");
         } else {
-            main_rs.push_str(&generate_reason_function(block));
+            main_rs.push_str(&crate::codegen::cortex::generate_cortex_reason_function(&cortex_spec, &cortex_config));
             main_rs.push_str("\n");
         }
     }
@@ -1945,6 +1964,7 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
     let rusqlite_dep = if has_db { "rusqlite = { version = \"0.31\", features = [\"bundled\"] }\n" } else { "" };
     let jwt_dep = if auth_usage.uses_jwt { "jsonwebtoken = \"9\"\n" } else { "" };
     let bcrypt_dep = if auth_usage.uses_bcrypt { "bcrypt = \"0.15\"\n" } else { "" };
+    let ureq_dep = if !reason_blocks.is_empty() { "ureq = { version = \"2\", features = [\"json\"] }\n" } else { "" };
     let cargo_toml = format!(
         r#"[package]
 name = "{}"
@@ -1956,8 +1976,8 @@ axum = "0.8"
 tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
-{}{}{}{}{}"#,
-        project_name, chrono_dep, dotenvy_dep, rusqlite_dep, jwt_dep, bcrypt_dep
+{}{}{}{}{}{}"#,
+        project_name, chrono_dep, dotenvy_dep, rusqlite_dep, jwt_dep, bcrypt_dep, ureq_dep
     );
 
     (main_rs, cargo_toml)
@@ -3080,18 +3100,230 @@ fn handle_test(reason: bool) {
 }
 
 fn handle_cortex_status() {
+    use crate::codegen::cortex;
+
     print_banner();
     let config = Config::load_or_default();
-    println!("  {}", "Cortex Engine Status".bold());
+    println!("  {}", "Cortex Engine V1".bold().cyan());
+    println!("  {}", "─────────────────".dimmed());
     println!("  Mode:       {}", config.cortex.mode);
     println!("  Confidence: {:.0}%", config.cortex.confidence * 100.0);
-    println!("  {}", "Not fully implemented yet".yellow());
+
+    // Check for model
+    let model_path = format!("{}/{}", cortex::MODELS_DIR, cortex::DEFAULT_MODEL);
+    if std::path::Path::new(&model_path).exists() {
+        let metadata = fs::metadata(&model_path).ok();
+        let size_mb = metadata.map(|m| m.len() / (1024 * 1024)).unwrap_or(0);
+        println!("  Model:      {} ({} MB)", cortex::DEFAULT_MODEL.green(), size_mb);
+    } else {
+        println!("  Model:      {} (run `aid cortex pull`)", "not installed".red());
+    }
+
+    // Check cortex.toml
+    if std::path::Path::new("cortex.toml").exists() {
+        println!("  Config:     {}", "cortex.toml".green());
+    } else {
+        println!("  Config:     {} (run `aid cortex init`)", "not found".yellow());
+    }
+
+    // Check if sidecar is running
+    let sidecar_running = check_cortex_sidecar(cortex::SIDECAR_PORT);
+    if sidecar_running {
+        println!("  Sidecar:    {} (port {})", "running".green().bold(), cortex::SIDECAR_PORT);
+    } else {
+        println!("  Sidecar:    {} (run `aid cortex serve`)", "not running".yellow());
+    }
+    println!();
+}
+
+fn check_cortex_sidecar(port: u16) -> bool {
+    use std::net::TcpStream;
+    TcpStream::connect(format!("127.0.0.1:{}", port))
+        .map(|_| true)
+        .unwrap_or(false)
+}
+
+fn handle_cortex_pull(model: Option<String>) {
+    use crate::codegen::cortex;
+
+    print_banner();
+    let model_url = model.unwrap_or_else(|| cortex::DEFAULT_MODEL_URL.to_string());
+    let model_filename = model_url.split('/').last().unwrap_or(cortex::DEFAULT_MODEL);
+    let model_dir = cortex::MODELS_DIR;
+    let model_path = format!("{}/{}", model_dir, model_filename);
+
+    // Create models directory
+    if let Err(e) = fs::create_dir_all(model_dir) {
+        println!("  {} Failed to create {}: {}", "✗".red(), model_dir, e);
+        return;
+    }
+
+    // Check if already downloaded
+    if std::path::Path::new(&model_path).exists() {
+        let size_mb = fs::metadata(&model_path).map(|m| m.len() / (1024 * 1024)).unwrap_or(0);
+        println!("  {} Model already exists: {} ({} MB)", "✓".green(), model_filename, size_mb);
+        println!("  To re-download, delete {} first", model_path);
+        return;
+    }
+
+    println!("  {} Downloading model: {}", "↓".cyan(), model_filename.bold());
+    println!("  URL: {}", model_url.dimmed());
+    println!("  Destination: {}", model_path.dimmed());
+    println!();
+
+    // Use curl for download (available on all platforms)
+    let status = Command::new("curl")
+        .args(["-L", "-o", &model_path, "--progress-bar", &model_url])
+        .status();
+
+    match status {
+        Ok(s) if s.success() => {
+            let size_mb = fs::metadata(&model_path).map(|m| m.len() / (1024 * 1024)).unwrap_or(0);
+            println!();
+            println!("  {} Model downloaded: {} ({} MB)", "✓".green(), model_filename, size_mb);
+            println!("  Run `aid cortex serve` to start local inference");
+        }
+        Ok(_) => {
+            println!("  {} Download failed", "✗".red());
+            let _ = fs::remove_file(&model_path);
+        }
+        Err(e) => {
+            println!("  {} Failed to run curl: {}", "✗".red(), e);
+            let _ = fs::remove_file(&model_path);
+        }
+    }
+}
+
+fn handle_cortex_serve(port: u16, model_path: Option<String>) {
+    use crate::codegen::cortex;
+
+    print_banner();
+    let model = model_path.unwrap_or_else(|| {
+        format!("{}/{}", cortex::MODELS_DIR, cortex::DEFAULT_MODEL)
+    });
+
+    if !std::path::Path::new(&model).exists() {
+        println!("  {} Model not found: {}", "✗".red(), model);
+        println!("  Run `aid cortex pull` to download a model first");
+        return;
+    }
+
+    let size_mb = fs::metadata(&model).map(|m| m.len() / (1024 * 1024)).unwrap_or(0);
+    println!("  {} Starting Cortex sidecar...", "→".cyan());
+    println!("  Model:  {} ({} MB)", model.bold(), size_mb);
+    println!("  Port:   {}", port);
+    println!("  {}", "─────────────────".dimmed());
+
+    // Start the Cortex sidecar server
+    // This uses llama-server or our built-in server
+    // For V1, we try llama-server (from llama.cpp) first, then fall back to built-in
+    let llama_server = find_llama_server();
+
+    if let Some(server_bin) = llama_server {
+        println!("  Engine: llama.cpp ({})", server_bin.dimmed());
+        println!();
+        println!("  {} Cortex sidecar running on http://127.0.0.1:{}", "✓".green().bold(), port);
+        println!("  Press Ctrl+C to stop");
+        println!();
+
+        let status = Command::new(&server_bin)
+            .args([
+                "-m", &model,
+                "--port", &port.to_string(),
+                "--host", "127.0.0.1",
+                "-c", "2048",
+                "-ngl", "99",
+            ])
+            .status();
+
+        match status {
+            Ok(s) if s.success() => {}
+            Ok(s) => println!("  Sidecar exited with status: {}", s),
+            Err(e) => println!("  {} Failed to start sidecar: {}", "✗".red(), e),
+        }
+    } else {
+        println!("  {} llama-server not found.", "!".yellow());
+        println!();
+        println!("  To install llama.cpp server:");
+        println!("    brew install llama.cpp");
+        println!("  Or download from: https://github.com/ggerganov/llama.cpp/releases");
+        println!();
+        println!("  After installing, run: aid cortex serve");
+    }
+}
+
+fn find_llama_server() -> Option<String> {
+    // Check common locations for llama-server
+    let candidates = [
+        "llama-server",
+        "llama.cpp/server",
+        "/usr/local/bin/llama-server",
+        "/opt/homebrew/bin/llama-server",
+    ];
+
+    for candidate in &candidates {
+        if Command::new("which")
+            .arg(candidate)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+        {
+            return Some(candidate.to_string());
+        }
+    }
+
+    // Also check if llama-server is available via PATH
+    if Command::new("llama-server")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
+        return Some("llama-server".to_string());
+    }
+
+    None
+}
+
+fn handle_cortex_init() {
+    use crate::codegen::cortex;
+
+    print_banner();
+    if std::path::Path::new("cortex.toml").exists() {
+        println!("  {} cortex.toml already exists", "!".yellow());
+        return;
+    }
+
+    fs::write("cortex.toml", cortex::generate_cortex_toml())
+        .expect("Failed to write cortex.toml");
+    let _ = fs::create_dir_all(cortex::MODELS_DIR);
+
+    println!("  {} Created cortex.toml", "✓".green());
+    println!("  {} Created {}/", "✓".green(), cortex::MODELS_DIR);
+    println!();
+    println!("  Next steps:");
+    println!("    1. aid cortex pull      # Download a model");
+    println!("    2. aid cortex serve     # Start local inference");
+    println!("    3. aid build            # Builds with Cortex support");
 }
 
 fn handle_cortex_test(block: &str) {
+    use crate::codegen::cortex;
+
     print_banner();
     println!("  {} Testing reason block '{}'...", "→".dimmed(), block.bold());
-    println!("  {}", "Not implemented yet".yellow());
+
+    // Check if sidecar is running
+    if !check_cortex_sidecar(cortex::SIDECAR_PORT) {
+        println!("  {} Cortex sidecar not running", "!".yellow());
+        println!("  Start it with: aid cortex serve");
+        println!("  Will test with V1 keyword matching only");
+    } else {
+        println!("  {} Cortex sidecar connected (port {})", "✓".green(), cortex::SIDECAR_PORT);
+    }
+    println!();
+    println!("  {}", "Interactive testing not yet available".yellow());
+    println!("  Build and run your project to test reason blocks");
 }
 
 fn handle_rollback(name: &str, to: Option<u32>) {

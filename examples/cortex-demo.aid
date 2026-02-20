@@ -1,0 +1,138 @@
+// cortex-demo.aid — Cortex V1: Local LLM-powered reason blocks
+//
+// This demo shows reason blocks powered by the Cortex engine.
+// When the Cortex sidecar is running (aid cortex serve), reason blocks
+// use a local LLM for intelligent inference. When the sidecar is not
+// available, they fall back to V1 keyword matching.
+//
+// Setup:
+//   1. aid cortex pull          # Download TinyLlama model
+//   2. aid cortex serve &       # Start local LLM sidecar
+//   3. aid build cortex-demo.aid
+//   4. aid run
+//
+// Test:
+//   curl -X POST http://localhost:8080/classify -d "My server is completely down"
+//   curl -X POST http://localhost:8080/sentiment -d "This product is amazing!"
+//   curl http://localhost:8080/cortex-status
+
+module main
+
+use std.http
+
+// ── Reason block: Ticket Classification ─────────────────────────────────────
+// When Cortex sidecar is running, this uses the local LLM.
+// Otherwise, falls back to keyword matching from examples.
+
+reason classify_ticket(text: string) -> string {
+    goal: "Classify a customer support ticket into a category"
+    constraints: [
+        "Return one of: billing, technical, general, urgent",
+        "If uncertain, return 'general'",
+        "Tickets mentioning 'outage' or 'down' are always 'urgent'"
+    ]
+    examples: [
+        ("My credit card was charged twice", "billing"),
+        ("I need a refund for last month", "billing"),
+        ("The server is completely down", "urgent"),
+        ("API is returning 500 errors", "technical"),
+        ("How do I reset my password?", "technical"),
+        ("Can't connect to the database", "technical"),
+        ("I have a question about your product", "general"),
+        ("What are your business hours?", "general")
+    ]
+    fallback: "general"
+}
+
+// ── Reason block: Sentiment Analysis ────────────────────────────────────────
+
+reason analyze_sentiment(text: string) -> string {
+    goal: "Analyze the sentiment of the text"
+    constraints: [
+        "Return one of: positive, negative, neutral",
+        "Be conservative — lean toward neutral when uncertain"
+    ]
+    examples: [
+        ("This product is amazing and works perfectly!", "positive"),
+        ("Great customer service, very helpful", "positive"),
+        ("Terrible experience, nothing works", "negative"),
+        ("The app keeps crashing constantly", "negative"),
+        ("I received my order today", "neutral"),
+        ("Can you tell me your office hours?", "neutral")
+    ]
+    fallback: "neutral"
+}
+
+// ── Reason block: Priority Detection ────────────────────────────────────────
+
+reason detect_priority(text: string) -> string {
+    goal: "Detect the priority level of a support request"
+    constraints: [
+        "Return one of: critical, high, medium, low",
+        "Mentions of 'outage' or 'down' or 'emergency' are always critical",
+        "Security issues are always high priority"
+    ]
+    examples: [
+        ("Everything is down, customers can't access anything", "critical"),
+        ("Production database is not responding", "critical"),
+        ("There's a security vulnerability in the API", "high"),
+        ("Login page is loading slowly", "medium"),
+        ("Can you update my email address?", "low"),
+        ("Feature request: add dark mode", "low")
+    ]
+    fallback: "medium"
+}
+
+// ── HTTP Server ─────────────────────────────────────────────────────────────
+
+fn main() {
+    server := http.new(port: 8080)
+
+    server.get("/") => fn(req) -> Response {
+        Response.json({
+            name: "Cortex Demo",
+            version: "1.0.0",
+            description: "AID reason blocks powered by local LLM (Cortex V1)",
+            endpoints: [
+                "POST /classify - Classify a support ticket",
+                "POST /sentiment - Analyze text sentiment",
+                "POST /priority - Detect request priority",
+                "GET /cortex-status - Check Cortex sidecar status"
+            ]
+        })
+    }
+
+    server.post("/classify") => fn(req) -> Response {
+        Response.json({
+            input: req.body.text(),
+            category: classify_ticket(req.body.text()),
+            engine: "cortex-v1"
+        })
+    }
+
+    server.post("/sentiment") => fn(req) -> Response {
+        Response.json({
+            input: req.body.text(),
+            sentiment: analyze_sentiment(req.body.text()),
+            engine: "cortex-v1"
+        })
+    }
+
+    server.post("/priority") => fn(req) -> Response {
+        Response.json({
+            input: req.body.text(),
+            priority: detect_priority(req.body.text()),
+            engine: "cortex-v1"
+        })
+    }
+
+    server.get("/cortex-status") => fn(req) -> Response {
+        Response.json({
+            engine: "cortex-v1",
+            sidecar_port: 8090,
+            description: "Local LLM inference via Cortex sidecar. Falls back to keyword matching if sidecar not running."
+        })
+    }
+
+    server.start()
+}

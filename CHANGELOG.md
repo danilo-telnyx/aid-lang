@@ -2,6 +2,44 @@
 
 ## v0.2.0 — 2026-02-20
 
+### 🧠 Cortex V1 — Local LLM Integration for Reason Blocks (Issue #13)
+
+#### Architecture: Sidecar + Fallback
+- **Cortex sidecar** (`aid cortex serve`) — local HTTP server wrapping llama.cpp for GGUF model inference
+- **Generated code** tries Cortex sidecar (localhost:8090) first, falls back to V1 keyword matching
+- **100% local** — no network calls, no cloud APIs, privacy by architecture
+- **Zero breaking changes** — existing reason blocks work exactly as before without Cortex
+
+#### New CLI Commands
+- **`aid cortex pull`** — Download a GGUF model (default: TinyLlama-1.1B-Chat Q4_K_M, ~670MB)
+- **`aid cortex serve`** — Start the Cortex sidecar server (wraps llama-server from llama.cpp)
+- **`aid cortex status`** — Show model info, config status, and sidecar health
+- **`aid cortex init`** — Generate `cortex.toml` configuration file
+
+#### Code Generation (compiler/src/codegen/cortex.rs)
+- New `cortex.rs` module for Cortex-aware reason block code generation
+- `generate_cortex_reason_function()` — generates functions that try LLM first, fall back to keywords
+- `generate_cortex_infer_function()` — generates the HTTP client helper for sidecar communication
+- Builds prompt from goal + constraints + examples automatically
+- Generated Cargo.toml includes `ureq` dependency for HTTP calls to sidecar
+
+#### Configuration (cortex.toml)
+- Model path, temperature, max_tokens, top_p
+- Sidecar port and timeout settings
+- Fallback enable/disable
+
+#### New Example
+- `examples/cortex-demo.aid` — 3 reason blocks (classify, sentiment, priority) powered by Cortex V1
+
+#### Files Added/Modified
+- `compiler/src/codegen/cortex.rs` — Cortex code generation module (13 new tests)
+- `compiler/src/codegen/mod.rs` — Register cortex module
+- `compiler/src/cli/mod.rs` — Cortex CLI commands (pull, serve, status, init)
+- `examples/cortex-demo.aid` — Demo application
+- Test count: 45 → 58 (13 new tests for Cortex code generation)
+
+---
+
 ### 🚀 Webhook Classifier — The Complete AID Showcase App
 
 #### New Example: `examples/webhook-classifier/`

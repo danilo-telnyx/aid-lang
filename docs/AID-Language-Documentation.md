@@ -25,7 +25,7 @@
 | HTTP server | ✅ | ✅ | Via Axum |
 | Auto-docs | ✅ | ✅ | Basic generation |
 | WASM target | ✅ | ✅ | `--target wasm` → wasm32-wasip1 |
-| Cortex engine | ✅ | ⬜ | V1 uses keyword matching |
+| Cortex engine | ✅ | ✅ V1 | Local LLM sidecar + keyword fallback |
 
 ---
 

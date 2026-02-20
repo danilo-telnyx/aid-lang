@@ -50,6 +50,7 @@
 │   ├── database.aid                     # std.db demo (SQLite + HTTP + reason blocks)
 │   ├── html-demo.aid                    # std.html demo (templates + static files)
 │   ├── auth-demo.aid                    # std.auth demo (JWT + bcrypt + API keys)
+│   ├── cortex-demo.aid                  # Cortex V1 demo (LLM-powered reason blocks)
 │   └── webhook-classifier/              # ⭐ THE showcase app — every feature combined
 │       ├── main.aid                     # Full application (~300 lines)
 │       ├── templates/dashboard.html     # Dark-themed dashboard
@@ -72,6 +73,7 @@
 │       ├── codegen/env.rs               # std.env → Rust env/dotenvy mapping
 │       ├── codegen/db.rs               # std.db → rusqlite mapping
 │       ├── codegen/html.rs             # std.html → templates + static files
+│       ├── codegen/cortex.rs           # Cortex V1 — LLM-aware reason block code generation
 │       └── cli/mod.rs                   # clap CLI
 ├── LICENSE.md                           # BSL 1.1
 ├── COMMERCIAL.md                        # Revenue share tiers
@@ -97,7 +99,10 @@
 - `std.db` module: db.connect, db.execute, db.query, db.migrate → Rust rusqlite with AppState
 - `std.html` module: html.template, html.serve_static, html.render, html.redirect → Axum HTML + tower-http
 - `std.auth` module: auth.jwt_sign, auth.jwt_verify, auth.hash_password, auth.verify_password, auth.api_key, auth.middleware → Rust jsonwebtoken + bcrypt
-- 11 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid, database.aid, html-demo.aid, auth-demo.aid, webhook-classifier/
+- Cortex V1: `aid cortex pull` + `aid cortex serve` → local LLM sidecar for reason blocks
+- Cortex fallback: generated code tries local LLM first, falls back to V1 keyword matching
+- Configuration: `cortex.toml` for model settings, sidecar port, temperature, max_tokens
+- 12 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid, database.aid, html-demo.aid, auth-demo.aid, webhook-classifier/, cortex-demo.aid
 
 ## How to Build & Test
 
@@ -137,6 +142,7 @@ cargo build --release
 | 9 | std.db module | ✅ Done | — | db.connect, db.execute, db.query, db.migrate (SQLite) |
 | 10 | std.auth module | ✅ Done | — | auth.jwt_sign, auth.jwt_verify, auth.hash_password, auth.verify_password, auth.api_key, auth.middleware (JWT + bcrypt) |
 | 11 | std.html module | ✅ Done | — | html.template, html.serve_static, html.render, html.redirect |
+| 13 | Cortex V1 — Local LLM | ✅ Done | — | Sidecar architecture, llama.cpp, keyword fallback, cortex.toml |
 | 12 | Webhook Classifier Demo | ✅ Done | — | Complete showcase app: all features in one production-ready example |
 | 15 | `aid new` scaffolding | ✅ Done | — | `aid new <name> --template api\|minimal` project generator |
 
@@ -148,7 +154,7 @@ cargo build --release
 
 ## Future Roadmap (Beyond Issues)
 
-- **Cortex V1:** Replace keyword matcher with small local model (1B param)
+- **~~Cortex V1:~~** ✅ Done — Local LLM via sidecar + keyword matching fallback
 - **Evolve V2:** Telemetry-driven retraining + approval workflow
 - **Test framework:** `aid test` with reason block assertions
 - **Package manager:** `aid install <package>` *(spec complete — see docs/PACKAGE-SPEC.md)*
