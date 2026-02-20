@@ -220,6 +220,7 @@ fn print_banner() {
 // ─── HTTP Server Extraction & Code Generation ───────────────────────────────
 
 use crate::ast::*;
+use crate::codegen::auth as auth_codegen;
 use crate::codegen::env as env_codegen;
 
 struct HttpRoute {
@@ -917,6 +918,119 @@ fn generate_db_setup_code(ops: &[DbOperation]) -> String {
     code
 }
 
+// ─── Auth Operation Extraction ───────────────────────────────────────────────
+
+struct AuthOperation {
+    kind: AuthOpKind,
+    args: Vec<String>,
+    /// For var_decl assignment: the variable name receiving the result
+    result_var: Option<String>,
+}
+
+enum AuthOpKind {
+    JwtSign,
+    JwtVerify,
+    HashPassword,
+    VerifyPassword,
+    ApiKey,
+    Middleware,
+}
+
+/// Check if the program imports std.auth
+fn uses_std_auth(program: &Program) -> bool {
+    program.imports.iter().any(|imp| imp.path.join(".") == "std.auth")
+}
+
+/// Extract auth operations from statements in the main function and all other functions
+fn extract_auth_operations(program: &Program) -> Vec<AuthOperation> {
+    let mut ops = Vec::new();
+    for decl in &program.declarations {
+        if let Declaration::Function(f) = decl {
+            let stmts = match &f.body {
+                FunctionBody::Block(stmts) => stmts,
+                _ => continue,
+            };
+            for stmt in stmts {
+                extract_auth_ops_from_stmt(stmt, &mut ops);
+            }
+        }
+    }
+    ops
+}
+
+fn extract_auth_ops_from_stmt(stmt: &Statement, ops: &mut Vec<AuthOperation>) {
+    match stmt {
+        Statement::VarDecl { name, value, .. } => {
+            if let Some(mut op) = extract_auth_op_from_expr(value) {
+                op.result_var = Some(name.clone());
+                ops.push(op);
+            }
+        }
+        Statement::Expression { expr, .. } => {
+            if let Some(op) = extract_auth_op_from_expr(expr) {
+                ops.push(op);
+            }
+        }
+        Statement::Return { value: Some(expr), .. } => {
+            if let Some(op) = extract_auth_op_from_expr(expr) {
+                ops.push(op);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn extract_auth_op_from_expr(expr: &Expression) -> Option<AuthOperation> {
+    if let Expression::Call { callee, args, .. } = expr {
+        if let Expression::MemberAccess { object, member, .. } = callee.as_ref() {
+            if let Expression::Identifier { name, .. } = object.as_ref() {
+                if name == "auth" {
+                    let string_args: Vec<String> = args.iter().filter_map(|a| {
+                        match &a.value {
+                            Expression::Literal { value: Literal::String(s), .. } => Some(s.clone()),
+                            Expression::Identifier { name, .. } => Some(name.clone()),
+                            _ => None,
+                        }
+                    }).collect();
+
+                    let kind = match member.as_str() {
+                        "jwt_sign" => Some(AuthOpKind::JwtSign),
+                        "jwt_verify" => Some(AuthOpKind::JwtVerify),
+                        "hash_password" => Some(AuthOpKind::HashPassword),
+                        "verify_password" => Some(AuthOpKind::VerifyPassword),
+                        "api_key" => Some(AuthOpKind::ApiKey),
+                        "middleware" => Some(AuthOpKind::Middleware),
+                        _ => None,
+                    }?;
+
+                    return Some(AuthOperation {
+                        kind,
+                        args: string_args,
+                        result_var: None,
+                    });
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Extract the JWT secret used in the program (first jwt_sign or jwt_verify secret arg)
+fn extract_jwt_secret(program: &Program) -> Option<String> {
+    let ops = extract_auth_operations(program);
+    for op in &ops {
+        match &op.kind {
+            AuthOpKind::JwtSign | AuthOpKind::JwtVerify => {
+                if op.args.len() >= 2 {
+                    return Some(op.args[1].clone());
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 /// Extract keywords from a text string (words >= 3 chars, lowercased, no stop words)
 fn extract_keywords(text: &str) -> Vec<String> {
     let stop_words = [
@@ -1250,7 +1364,7 @@ fn generate_http_project(project_name: &str, info: &HttpServerInfo, reason_block
     }, &[], &[], &[])
 }
 
-fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo], evolve_blocks: &[EvolveBlockInfo], contracts: &[ContractInfo], program: &Program, intent_blocks: &[IntentBlock], intent_routes: &[IntentRoute], db_ops: &[DbOperation]) -> (String, String) {
+fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo], evolve_blocks: &[EvolveBlockInfo], contracts: &[ContractInfo], program: &Program, intent_blocks: &[IntentBlock], intent_routes: &[IntentRoute], db_ops: &[DbOperation], auth_usage: &auth_codegen::AuthUsage) -> (String, String) {
     let has_evolve = !evolve_blocks.is_empty();
     let has_db = !db_ops.is_empty();
     let evolved_targets: Vec<&str> = evolve_blocks.iter().map(|e| e.target.as_str()).collect();
@@ -2275,6 +2389,21 @@ fn handle_build(file: Option<PathBuf>, release: bool, no_docs: bool, verbose: bo
     } else {
         Vec::new()
     };
+
+    // Detect std.auth usage
+    let auth_usage = auth_codegen::scan_auth_usage(&program);
+    if auth_usage.uses_auth {
+        let mut features = Vec::new();
+        if auth_usage.uses_jwt { features.push("JWT"); }
+        if auth_usage.uses_bcrypt { features.push("bcrypt"); }
+        if auth_usage.uses_api_key { features.push("api_key"); }
+        if auth_usage.uses_middleware { features.push("middleware"); }
+        println!(
+            "  {} std.auth: enabled ({})",
+            "✓".green().bold(),
+            features.join(", ")
+        );
+    }
 
     if target == BuildTarget::Wasm {
         // ── WASM build path ─────────────────────────────────────────────

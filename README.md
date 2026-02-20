@@ -139,6 +139,7 @@ The compiler reads the English rules and generates type-safe validators. No boil
 | ⚡ **WASM Target** | Compile to WebAssembly, deploy anywhere | ✅ Working |
 | 🌍 **std.env** | Environment variables, .env files, config-driven servers | ✅ Working |
 | 🗄️ **std.db** | SQLite database — connect, query, execute, migrate | ✅ Working |
+| 🌐 **std.html** | HTML templates, static files, render, redirect | ✅ Working |
 | 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
 
 ---
@@ -171,6 +172,40 @@ Operations:
 - `db.migrate("migrations/")` — Run `.sql` files in order
 
 Data is queried at startup and served via HTTP. The compiler generates rusqlite code with full type-safe column mapping.
+
+---
+
+## HTML Templates: `std.html`
+
+```aid
+module html_demo
+use std.http
+use std.html
+
+fn main() {
+    server := http.new(port: 8080)
+
+    server.get("/") => fn(req) -> Response {
+        data := { "title": "My App", "heading": "Welcome", "show_footer": true }
+        content := html.template("templates/index.html", data)
+        html.render(content)
+    }
+
+    server.get("/static") => fn(req) -> Response {
+        html.serve_static("public/")
+    }
+
+    server.start()
+}
+```
+
+Operations:
+- `html.template("path", data)` — Render HTML template with variable substitution
+- `html.serve_static("dir/")` — Serve static files (CSS, JS, images)
+- `html.render(content)` — Return HTML response
+- `html.redirect(url)` — HTTP redirect
+
+Template syntax: `{{variable}}`, `{{#each items}}...{{/each}}`, `{{#if condition}}...{{/if}}`
 
 ---
 
@@ -261,6 +296,7 @@ cd compiler && cargo build --release
 | WASM Module | WASM compilation target | [`examples/wasm-module.aid`](examples/wasm-module.aid) |
 | Env Demo | std.env, .env loading, config-driven server | [`examples/env-demo.aid`](examples/env-demo.aid) |
 | Database | std.db, SQLite, query + serve via HTTP, reason blocks | [`examples/database.aid`](examples/database.aid) |
+| HTML Demo | std.html, templates, static files, redirects | [`examples/html-demo.aid`](examples/html-demo.aid) |
 
 ---
 

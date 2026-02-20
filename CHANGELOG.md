@@ -2,6 +2,32 @@
 
 ## v0.2.0 — 2026-02-20
 
+### 🌐 std.html Module (Templates + Static Files)
+
+#### New Features
+- **`use std.html`** — import the HTML module
+- **`html.template("path", data)`** — render HTML templates with variable substitution
+- **`html.serve_static("dir/")`** — serve static files via tower-http ServeDir
+- **`html.render(content)`** — return HTML response
+- **`html.redirect(url)`** — HTTP redirect response
+- **Template syntax:** `{{variable}}`, `{{#each items}}...{{/each}}`, `{{#if condition}}...{{/if}}`
+- Built-in recursive template engine with regex-based processing
+- New codegen module: `compiler/src/codegen/html.rs` with 11 unit tests
+- New example: `examples/html-demo.aid` — templates, static files, dynamic pages, redirects
+- Example templates in `examples/templates/` and static assets in `examples/public/`
+
+#### Architecture
+- Template engine supports nested `#each` loops and `#if` conditionals
+- Static file serving via `tower_http::services::ServeDir`
+- `regex` crate added for template variable substitution
+- HTML responses via `axum::response::Html`
+
+#### Dependencies
+- `regex = "1"` added when `html.template()` is used
+- `tower-http = { version = "0.6", features = ["fs"] }` added when `html.serve_static()` is used
+
+---
+
 ### 🗄️ std.db Module (SQLite)
 
 #### New Features

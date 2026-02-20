@@ -1,0 +1,48 @@
+module html_demo
+
+use std.http
+use std.html
+
+fn main() {
+    server := http.new(port: 8080)
+
+    // Homepage with HTML template
+    server.get("/") => fn(req) -> Response {
+        data := {
+            "title": "AID HTML Demo",
+            "heading": "Welcome to AID",
+            "message": "This page is rendered with std.html templates!",
+            "show_footer": true
+        }
+        content := html.template("templates/index.html", data)
+        html.render(content)
+    }
+
+    // Dynamic page with items
+    server.get("/items") => fn(req) -> Response {
+        data := {
+            "title": "Item List",
+            "heading": "Our Items",
+            "items": [
+                { "name": "Widget A", "price": "9.99" },
+                { "name": "Widget B", "price": "19.99" },
+                { "name": "Widget C", "price": "29.99" }
+            ],
+            "show_footer": true
+        }
+        content := html.template("templates/items.html", data)
+        html.render(content)
+    }
+
+    // Redirect example
+    server.get("/old-page") => fn(req) -> Response {
+        html.redirect("/")
+    }
+
+    // Serve static CSS/JS files
+    server.get("/static") => fn(req) -> Response {
+        html.serve_static("public/")
+    }
+
+    server.start()
+}

@@ -46,7 +46,8 @@
 │   ├── intent.aid                       # Intent routing demo
 │   ├── wasm-module.aid                  # WASM compilation target
 │   ├── env-demo.aid                     # std.env demo (.env + config-driven server)
-│   └── database.aid                     # std.db demo (SQLite + HTTP + reason blocks)
+│   ├── database.aid                     # std.db demo (SQLite + HTTP + reason blocks)
+│   └── html-demo.aid                    # std.html demo (templates + static files)
 ├── poc/transpile.mjs                    # PoC transpiler (Node.js, keep for reference)
 ├── aid                                  # PoC CLI wrapper (bash)
 ├── compiler/                            # ⭐ Real compiler (Rust)
@@ -60,6 +61,7 @@
 │       ├── codegen/http.rs              # std.http → Axum mapping
 │       ├── codegen/env.rs               # std.env → Rust env/dotenvy mapping
 │       ├── codegen/db.rs               # std.db → rusqlite mapping
+│       ├── codegen/html.rs             # std.html → templates + static files
 │       └── cli/mod.rs                   # clap CLI
 ├── LICENSE.md                           # BSL 1.1
 ├── COMMERCIAL.md                        # Revenue share tiers
@@ -82,7 +84,8 @@
 - WASM compilation: `aid build --target wasm` → wasm32-wasip1 binaries
 - `std.env` module: env.get, env.require, env.load_dotenv, env.all → Rust std::env + dotenvy
 - `std.db` module: db.connect, db.execute, db.query, db.migrate → Rust rusqlite with AppState
-- 8 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid, database.aid
+- `std.html` module: html.template, html.serve_static, html.render, html.redirect → Axum HTML + tower-http
+- 9 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid, database.aid, html-demo.aid
 
 ## How to Build & Test
 
@@ -120,12 +123,13 @@ cargo build --release
 
 | 8 | std.env module | ✅ Done | — | env.get, env.require, env.load_dotenv, env.all |
 | 9 | std.db module | ✅ Done | — | db.connect, db.execute, db.query, db.migrate (SQLite) |
+| 10 | std.auth module | 🔄 In Progress | — | auth.jwt_verify, auth.hash_password, auth.require_role |
+| 11 | std.html module | ✅ Done | — | html.template, html.serve_static, html.render, html.redirect |
 
 ## Future Roadmap (Beyond Issues)
 
 - **Cortex V1:** Replace keyword matcher with small local model (1B param)
 - **Evolve V2:** Telemetry-driven retraining + approval workflow
-- **std.html:** Templating + static files
 - **Test framework:** `aid test` with reason block assertions
 - **Package manager:** `aid install <package>`
 - **VS Code extension:** Syntax highlighting, autocomplete
