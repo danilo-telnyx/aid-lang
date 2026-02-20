@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>std.html — AID Language</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .api-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .api-card h4 { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 1rem; margin-bottom: 8px; }
+    .api-card p { color: var(--text-dim); font-size: 0.9rem; }
+    .rust-output { border-left: 3px solid var(--gold); }
+    .rust-label { display: inline-block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); background: rgba(255,179,71,0.1); padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="../" class="logo">AID <span class="version-badge">v0.2.0</span></a>
+    <div class="links">
+      <a href="./">Stdlib</a>
+      <a href="../examples/">Examples</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" style="padding:140px 0 60px">
+  <div class="container fade-in">
+    <div class="hero-badge">Standard Library</div>
+    <h1 style="font-size:3rem">📄 std.html</h1>
+    <p class="tagline">HTML templates, static files, and server-side rendering.</p>
+    <p class="desc">Build full web applications with template rendering, variable interpolation, loops, conditionals, static file serving, and redirects. Compiles to Axum HTML responses + tower-http.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>API Reference</h2>
+    <p class="section-sub">Every function in the std.html module.</p>
+
+    <div class="api-card">
+      <h4>html.template(path: string, data: map) → string</h4>
+      <p>Loads an HTML template file and replaces template markers with data values. Supports <code>{{variable}}</code> interpolation, <code>{{#each array}}</code> loops, and <code>{{#if condition}}</code> conditionals.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>data <span class="op">:=</span> { <span class="str">"title"</span>: <span class="str">"My Page"</span>, <span class="str">"items"</span>: [<span class="str">"a"</span>, <span class="str">"b"</span>] }
+content <span class="op">:=</span> html.<span class="fn-name">template</span>(<span class="str">"templates/page.html"</span>, data)</code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>html.render(content: string) → Response</h4>
+      <p>Returns an HTTP response with <code>Content-Type: text/html</code> and the given HTML content as the body.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>content <span class="op">:=</span> html.<span class="fn-name">template</span>(<span class="str">"templates/page.html"</span>, data)
+html.<span class="fn-name">render</span>(content)  <span class="cmt">// returns Response with text/html</span></code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>html.serve_static(path: string) → Response</h4>
+      <p>Serves static files (CSS, JS, images, fonts) from the specified directory. Files are served with correct MIME types and caching headers.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>server.<span class="fn-name">get</span>(<span class="str">"/static"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+    html.<span class="fn-name">serve_static</span>(<span class="str">"public/"</span>)
+}</code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>html.redirect(url: string) → Response</h4>
+      <p>Returns a 302 redirect response to the specified URL. Use for URL migrations, post-form-submit redirects, or shortlinks.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>server.<span class="fn-name">get</span>(<span class="str">"/old-page"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+    html.<span class="fn-name">redirect</span>(<span class="str">"/"</span>)
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Template Syntax</h2>
+    <p class="section-sub">Handlebars-inspired template markers.</p>
+    <div class="features-grid" style="grid-template-columns: 1fr 1fr">
+
+      <div class="feature-card">
+        <h3>Variables</h3>
+        <pre class="code-inline" style="margin-top:12px"><code>&lt;h1&gt;{{heading}}&lt;/h1&gt;
+&lt;p&gt;{{message}}&lt;/p&gt;</code></pre>
+        <p style="margin-top:8px">Replaced with the corresponding value from the data map.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Loops</h3>
+        <pre class="code-inline" style="margin-top:12px"><code>{{#each items}}
+  &lt;li&gt;{{name}} — ${{price}}&lt;/li&gt;
+{{/each}}</code></pre>
+        <p style="margin-top:8px">Iterates over arrays. Inner properties available directly.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>Conditionals</h3>
+        <pre class="code-inline" style="margin-top:12px"><code>{{#if show_footer}}
+  &lt;footer&gt;© 2026&lt;/footer&gt;
+{{/if}}</code></pre>
+        <p style="margin-top:8px">Renders block only if value is truthy.</p>
+      </div>
+
+      <div class="feature-card">
+        <h3>If/Else</h3>
+        <pre class="code-inline" style="margin-top:12px"><code>{{#if in_stock}}
+  &lt;span class="green"&gt;Available&lt;/span&gt;
+{{else}}
+  &lt;span class="red"&gt;Sold Out&lt;/span&gt;
+{{/if}}</code></pre>
+        <p style="margin-top:8px">Fallback content when condition is false.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Complete Example</h2>
+    <p class="section-sub">Multi-page web app with templates, static files, and redirects.</p>
+    <pre class="code-block active" style="display:block;border-radius:12px"><code><span class="kw">module</span> main
+
+<span class="kw">use</span> std.http
+<span class="kw">use</span> std.html
+
+<span class="kw">fn</span> <span class="fn-name">main</span>() {
+    server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)
+
+    <span class="cmt">// Homepage — template with variables</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        data <span class="op">:=</span> {
+            <span class="str">"title"</span>: <span class="str">"My App"</span>,
+            <span class="str">"heading"</span>: <span class="str">"Welcome"</span>,
+            <span class="str">"show_footer"</span>: <span class="kw">true</span>
+        }
+        content <span class="op">:=</span> html.<span class="fn-name">template</span>(<span class="str">"templates/index.html"</span>, data)
+        html.<span class="fn-name">render</span>(content)
+    }
+
+    <span class="cmt">// Items page — template with {{#each}} loop</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/items"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        data <span class="op">:=</span> {
+            <span class="str">"title"</span>: <span class="str">"Products"</span>,
+            <span class="str">"items"</span>: [
+                { <span class="str">"name"</span>: <span class="str">"Widget"</span>, <span class="str">"price"</span>: <span class="str">"9.99"</span> },
+                { <span class="str">"name"</span>: <span class="str">"Gadget"</span>, <span class="str">"price"</span>: <span class="str">"19.99"</span> }
+            ]
+        }
+        content <span class="op">:=</span> html.<span class="fn-name">template</span>(<span class="str">"templates/items.html"</span>, data)
+        html.<span class="fn-name">render</span>(content)
+    }
+
+    <span class="cmt">// Redirect old URLs</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/old-page"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        html.<span class="fn-name">redirect</span>(<span class="str">"/"</span>)
+    }
+
+    <span class="cmt">// Static files: CSS, JS, images</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/static"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        html.<span class="fn-name">serve_static</span>(<span class="str">"public/"</span>)
+    }
+
+    server.<span class="fn-name">start</span>()
+}</code></pre>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Generated Rust</h2>
+    <p class="section-sub">What the compiler produces for HTML operations.</p>
+    <span class="rust-label">Transpiled Output (simplified)</span>
+    <pre class="code-block active rust-output" style="display:block;border-radius:12px"><code><span class="kw">use</span> axum::response::Html;
+<span class="kw">use</span> tower_http::services::ServeDir;
+
+<span class="cmt">// html.template("templates/page.html", data)</span>
+<span class="kw">let</span> template = std::fs::read_to_string(<span class="str">"templates/page.html"</span>).unwrap();
+<span class="kw">let</span> rendered = template
+    .replace(<span class="str">"{{title}}"</span>, &data[<span class="str">"title"</span>])
+    .replace(<span class="str">"{{heading}}"</span>, &data[<span class="str">"heading"</span>]);
+<span class="cmt">// + loop/conditional expansion at compile time</span>
+
+<span class="cmt">// html.render(content)</span>
+Html(rendered)
+
+<span class="cmt">// html.redirect("/")</span>
+Redirect::to(<span class="str">"/"</span>)
+
+<span class="cmt">// html.serve_static("public/")</span>
+Router::new().nest_service(<span class="str">"/static"</span>, ServeDir::new(<span class="str">"public/"</span>))</code></pre>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="./">← Stdlib</a>
+      <a href="../">Home</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/stdlib/html-complete.aid">Source</a>
+    </div>
+    <p>AID — Auto-Intelligent Development Language © 2026</p>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

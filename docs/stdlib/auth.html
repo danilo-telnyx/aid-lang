@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>std.auth — AID Language</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .api-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .api-card h4 { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 1rem; margin-bottom: 8px; }
+    .api-card p { color: var(--text-dim); font-size: 0.9rem; }
+    .rust-output { border-left: 3px solid var(--gold); }
+    .rust-label { display: inline-block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); background: rgba(255,179,71,0.1); padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="../" class="logo">AID <span class="version-badge">v0.2.0</span></a>
+    <div class="links">
+      <a href="./">Stdlib</a>
+      <a href="../examples/">Examples</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" style="padding:140px 0 60px">
+  <div class="container fade-in">
+    <div class="hero-badge">Standard Library</div>
+    <h1 style="font-size:3rem">🔐 std.auth</h1>
+    <p class="tagline">JWT tokens, bcrypt passwords, API keys, and auth middleware.</p>
+    <p class="desc">Production-ready authentication in a few function calls. Built on jsonwebtoken and bcrypt Rust crates with secure defaults (HS256, cost factor 12).</p>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>API Reference</h2>
+    <p class="section-sub">Every function in the std.auth module.</p>
+
+    <div class="api-card">
+      <h4>auth.hash_password(password: string) → string</h4>
+      <p>Hashes a plaintext password using bcrypt with cost factor 12. Returns the hash string including the embedded salt. Each call produces a different hash for the same input.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>hash <span class="op">:=</span> auth.<span class="fn-name">hash_password</span>(<span class="str">"secret123"</span>)
+<span class="cmt">// Returns: "$2b$12$LJ3m4ys3Lg..." (60 chars, includes salt)</span></code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>auth.verify_password(password: string, hash: string) → bool</h4>
+      <p>Compares a plaintext password against a bcrypt hash. Returns <code>true</code> if they match. Constant-time comparison prevents timing attacks.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>valid <span class="op">:=</span> auth.<span class="fn-name">verify_password</span>(<span class="str">"secret123"</span>, stored_hash)
+<span class="cmt">// Returns: true or false</span></code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>auth.jwt_sign(claims: string, secret: string) → string</h4>
+      <p>Creates a signed JWT token from a JSON claims string and a secret key. Uses HS256 algorithm. Claims should include <code>sub</code> (subject) and optionally <code>exp</code> (expiration), <code>role</code>, etc.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>token <span class="op">:=</span> auth.<span class="fn-name">jwt_sign</span>(<span class="str">"{\"sub\":\"alice\",\"role\":\"admin\"}"</span>, <span class="str">"my-secret"</span>)
+<span class="cmt">// Returns: "eyJhbGciOiJIUzI1NiJ9.eyJzdWI..." (compact JWT)</span></code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>auth.jwt_verify(token: string, secret: string) → string</h4>
+      <p>Verifies a JWT token's signature and returns the decoded claims as a JSON string. Throws an error if the token is invalid, expired, or tampered with.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>claims <span class="op">:=</span> auth.<span class="fn-name">jwt_verify</span>(token, <span class="str">"my-secret"</span>)
+<span class="cmt">// Returns: "{\"sub\":\"alice\",\"role\":\"admin\"}"</span></code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>auth.api_key(req: Request, expected: string) → bool</h4>
+      <p>Validates the <code>X-API-Key</code> header against an expected value. Returns <code>true</code> if they match. Use for machine-to-machine authentication (webhooks, service calls).</p>
+      <pre class="code-inline" style="margin-top:12px"><code>valid <span class="op">:=</span> auth.<span class="fn-name">api_key</span>(req, <span class="str">"my-service-key-2026"</span>)
+<span class="cmt">// Checks: req.headers["X-API-Key"] == "my-service-key-2026"</span></code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>auth.middleware(handler: fn) → fn</h4>
+      <p>Wraps a route handler with JWT authentication. Extracts the Bearer token from the <code>Authorization</code> header, verifies it, and passes decoded claims to the handler. Returns 401 if invalid.</p>
+      <pre class="code-inline" style="margin-top:12px"><code><span class="cmt">// Protected route — only accessible with valid JWT</span>
+server.<span class="fn-name">get</span>(<span class="str">"/admin"</span>) <span class="op">=></span> auth.<span class="fn-name">middleware</span>(<span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+    Response.<span class="fn-name">json</span>({ message: <span class="str">"Welcome, admin"</span> })
+})</code></pre>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Complete Example</h2>
+    <p class="section-sub">Full auth flow: register → login → access protected routes.</p>
+    <pre class="code-block active" style="display:block;border-radius:12px"><code><span class="kw">module</span> main
+
+<span class="kw">use</span> std.http
+<span class="kw">use</span> std.auth
+<span class="kw">use</span> std.env
+
+<span class="kw">fn</span> <span class="fn-name">main</span>() {
+    env.<span class="fn-name">load_dotenv</span>()
+    jwt_secret <span class="op">:=</span> env.<span class="fn-name">require</span>(<span class="str">"JWT_SECRET"</span>)
+
+    server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)
+
+    <span class="cmt">// Register — hash password with bcrypt</span>
+    server.<span class="fn-name">post</span>(<span class="str">"/register"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        hash <span class="op">:=</span> auth.<span class="fn-name">hash_password</span>(req.body.password)
+        Response.<span class="fn-name">json</span>({ hash: hash, message: <span class="str">"Registered"</span> })
+    }
+
+    <span class="cmt">// Login — issue JWT token</span>
+    server.<span class="fn-name">post</span>(<span class="str">"/login"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        claims <span class="op">:=</span> <span class="str">"{\"sub\":\"alice\",\"role\":\"admin\"}"</span>
+        token <span class="op">:=</span> auth.<span class="fn-name">jwt_sign</span>(claims, <span class="str">"my_jwt_secret_key"</span>)
+        Response.<span class="fn-name">json</span>({ token: token })
+    }
+
+    <span class="cmt">// Protected route — JWT middleware</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/profile"</span>) <span class="op">=></span> auth.<span class="fn-name">middleware</span>(<span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        Response.<span class="fn-name">json</span>({ user: <span class="str">"authenticated"</span> })
+    })
+
+    <span class="cmt">// API key endpoint</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/api/data"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        valid <span class="op">:=</span> auth.<span class="fn-name">api_key</span>(req, <span class="str">"my-service-key"</span>)
+        Response.<span class="fn-name">json</span>({ data: <span class="str">"sensitive"</span> })
+    }
+
+    server.<span class="fn-name">start</span>()
+}</code></pre>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Generated Rust</h2>
+    <p class="section-sub">What the compiler produces for authentication operations.</p>
+    <span class="rust-label">Transpiled Output (simplified)</span>
+    <pre class="code-block active rust-output" style="display:block;border-radius:12px"><code><span class="kw">use</span> jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey};
+<span class="kw">use</span> bcrypt::{hash, verify, DEFAULT_COST};
+
+<span class="cmt">// auth.hash_password("secret123")</span>
+<span class="kw">let</span> hashed = hash(<span class="str">"secret123"</span>, <span class="num">12</span>).unwrap();
+
+<span class="cmt">// auth.verify_password("secret123", stored_hash)</span>
+<span class="kw">let</span> valid = verify(<span class="str">"secret123"</span>, &stored_hash).unwrap();
+
+<span class="cmt">// auth.jwt_sign(claims, "my-secret")</span>
+<span class="kw">let</span> token = encode(
+    &Header::default(),
+    &claims,
+    &EncodingKey::from_secret(<span class="str">"my-secret"</span>.as_ref())
+).unwrap();
+
+<span class="cmt">// auth.jwt_verify(token, "my-secret")</span>
+<span class="kw">let</span> decoded = decode::&lt;Claims&gt;(
+    &token,
+    &DecodingKey::from_secret(<span class="str">"my-secret"</span>.as_ref()),
+    &Validation::default()
+).unwrap();
+
+<span class="cmt">// auth.middleware(handler)</span>
+<span class="cmt">// Generates an Axum middleware extractor that:</span>
+<span class="cmt">// 1. Reads Authorization: Bearer &lt;token&gt; header</span>
+<span class="cmt">// 2. Verifies JWT signature</span>
+<span class="cmt">// 3. Returns 401 if invalid</span>
+<span class="cmt">// 4. Injects claims into request extensions</span></code></pre>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="./">← Stdlib</a>
+      <a href="../">Home</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/stdlib/auth-complete.aid">Source</a>
+    </div>
+    <p>AID — Auto-Intelligent Development Language © 2026</p>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

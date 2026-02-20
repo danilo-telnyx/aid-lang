@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Examples — AID Language</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .example-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .example-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; transition: border-color 0.3s, transform 0.3s; text-decoration: none; color: inherit; display: block; }
+    .example-card:hover { border-color: var(--accent); transform: translateY(-2px); text-decoration: none; }
+    .example-card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+    .example-card p { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 12px; }
+    .example-tag { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-right: 6px; }
+    .tag-starter { color: var(--green); background: rgba(74,222,128,0.1); }
+    .tag-stdlib { color: var(--accent); background: rgba(0,212,255,0.1); }
+    .tag-ai { color: var(--gold); background: rgba(255,179,71,0.1); }
+    .tag-app { color: #f0abfc; background: rgba(240,171,252,0.1); }
+    .cat-heading { font-size: 1.3rem; font-weight: 700; margin: 48px 0 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .cat-heading:first-of-type { margin-top: 0; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="../" class="logo">AID <span class="version-badge">v0.2.0</span></a>
+    <div class="links">
+      <a href="../#features">Features</a>
+      <a href="../stdlib/">Stdlib</a>
+      <a href="./" style="color:var(--accent)">Examples</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" style="padding:140px 0 60px">
+  <div class="container fade-in">
+    <div class="hero-badge">Learn by Example</div>
+    <h1 style="font-size:3rem">Examples</h1>
+    <p class="tagline">Working code for every AID feature. Copy, build, run.</p>
+    <p class="desc">Every example compiles and runs. No mock data, no pseudocode — real AID programs you can use as starting points.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+
+    <!-- Getting Started -->
+    <h3 class="cat-heading">🚀 Getting Started</h3>
+    <div class="example-grid">
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/hello.aid" class="example-card">
+        <span class="example-tag tag-starter">Getting Started</span>
+        <h3>Hello World</h3>
+        <p>Minimal HTTP server with text and JSON routes. The simplest possible AID app.</p>
+        <pre class="code-inline"><code>server.<span class="fn-name">get</span>(<span class="str">"/"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+    Response.<span class="fn-name">text</span>(<span class="str">"Hello from AID"</span>)
+}</code></pre>
+      </a>
+
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/full-demo.aid" class="example-card">
+        <span class="example-tag tag-starter">Getting Started</span>
+        <h3>Full Demo</h3>
+        <p>Every language feature in one file — reason blocks, evolve, contracts, entities, all HTTP methods.</p>
+        <pre class="code-inline"><code><span class="cmt">// entities, reason, evolve, contracts</span>
+<span class="cmt">// All in ~200 lines</span></code></pre>
+      </a>
+
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/wasm-module.aid" class="example-card">
+        <span class="example-tag tag-starter">Getting Started</span>
+        <h3>WASM Module</h3>
+        <p>Compile to WebAssembly with <code>aid build --target wasm</code>. Deploy to edge, cloud, or browser.</p>
+        <pre class="code-inline"><code><span class="cmt">// $ aid build --target wasm</span>
+<span class="cmt">// → wasm32-wasip1 binary</span></code></pre>
+      </a>
+    </div>
+
+    <!-- Standard Library -->
+    <h3 class="cat-heading">📦 Standard Library</h3>
+    <div class="example-grid">
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/stdlib/db-complete.aid" class="example-card">
+        <span class="example-tag tag-stdlib">std.db</span>
+        <h3>Database — Full CRUD</h3>
+        <p>SQLite product store with CREATE, READ, UPDATE, DELETE endpoints, migrations, and aggregation queries.</p>
+        <pre class="code-inline"><code>db.<span class="fn-name">connect</span>(<span class="str">"sqlite://products.db"</span>)
+db.<span class="fn-name">migrate</span>(<span class="str">"migrations/"</span>)
+products <span class="op">:=</span> db.<span class="fn-name">query</span>(<span class="str">"SELECT * FROM products"</span>)</code></pre>
+      </a>
+
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/stdlib/env-complete.aid" class="example-card">
+        <span class="example-tag tag-stdlib">std.env</span>
+        <h3>Environment Config</h3>
+        <p>.env loading, required vs optional variables, config inspection endpoints, and best practices.</p>
+        <pre class="code-inline"><code>env.<span class="fn-name">load_dotenv</span>()
+port <span class="op">:=</span> env.<span class="fn-name">require</span>(<span class="str">"PORT"</span>)
+name <span class="op">:=</span> env.<span class="fn-name">get</span>(<span class="str">"APP_NAME"</span>)</code></pre>
+      </a>
+
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/stdlib/auth-complete.aid" class="example-card">
+        <span class="example-tag tag-stdlib">std.auth</span>
+        <h3>Authentication</h3>
+        <p>Complete auth flow: registration with bcrypt, login with JWT, protected routes, API key validation.</p>
+        <pre class="code-inline"><code>hash <span class="op">:=</span> auth.<span class="fn-name">hash_password</span>(password)
+token <span class="op">:=</span> auth.<span class="fn-name">jwt_sign</span>(claims, secret)
+auth.<span class="fn-name">middleware</span>(protected_handler)</code></pre>
+      </a>
+
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/stdlib/html-complete.aid" class="example-card">
+        <span class="example-tag tag-stdlib">std.html</span>
+        <h3>HTML Web App</h3>
+        <p>Multi-page web app with templates, variable interpolation, loops, conditionals, static files, and redirects.</p>
+        <pre class="code-inline"><code>content <span class="op">:=</span> html.<span class="fn-name">template</span>(<span class="str">"page.html"</span>, data)
+html.<span class="fn-name">render</span>(content)
+html.<span class="fn-name">redirect</span>(<span class="str">"/"</span>)</code></pre>
+      </a>
+    </div>
+
+    <!-- AI Features -->
+    <h3 class="cat-heading">🧠 AI Features</h3>
+    <div class="example-grid">
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/tickets.aid" class="example-card">
+        <span class="example-tag tag-ai">AI</span>
+        <h3>Reason + Evolve</h3>
+        <p>Support ticket classifier with AI reasoning and self-improving telemetry tracking.</p>
+        <pre class="code-inline"><code><span class="ai">reason</span> <span class="fn-name">classify_ticket</span>(text) <span class="op">-></span> <span class="type">string</span> {
+    <span class="ai">goal</span>: <span class="str">"Classify a support ticket"</span>
+    <span class="ai">fallback</span>: <span class="str">"general"</span>
+}</code></pre>
+      </a>
+
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/contracts.aid" class="example-card">
+        <span class="example-tag tag-ai">AI</span>
+        <h3>Contract Validation</h3>
+        <p>Natural language rules compiled to type-safe validators. Describe validation in English.</p>
+        <pre class="code-inline"><code><span class="ai">contract</span> ValidEmail {
+    rule: <span class="str">"Must contain @ symbol"</span>
+    rule: <span class="str">"Cannot be empty"</span>
+}</code></pre>
+      </a>
+
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/intent.aid" class="example-card">
+        <span class="example-tag tag-ai">AI</span>
+        <h3>Intent Routing</h3>
+        <p>AI-native HTTP routing. The compiler analyzes your handlers and builds route tables at compile time.</p>
+        <pre class="code-inline"><code><span class="cmt">// Compiler auto-discovers handlers</span>
+<span class="cmt">// Builds routes at compile time</span></code></pre>
+      </a>
+
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/cortex-demo.aid" class="example-card">
+        <span class="example-tag tag-ai">AI</span>
+        <h3>Cortex V1</h3>
+        <p>Local LLM-powered reason blocks via the Cortex sidecar. No cloud, no API keys.</p>
+        <pre class="code-inline"><code><span class="cmt">// $ aid cortex pull</span>
+<span class="cmt">// $ aid cortex serve</span>
+<span class="cmt">// → LLM-powered reason blocks</span></code></pre>
+      </a>
+    </div>
+
+    <!-- Full Apps -->
+    <h3 class="cat-heading">🚀 Full Applications</h3>
+    <div class="example-grid">
+      <a href="https://github.com/danilo-telnyx/aid-lang/tree/main/examples/webhook-classifier" class="example-card">
+        <span class="example-tag tag-app">Full App</span>
+        <h3>Webhook Classifier</h3>
+        <p>The showcase app — every AID feature in ~300 lines. SQLite storage, JWT auth, HTML dashboard, AI classification, evolve tracking, contract validation.</p>
+        <pre class="code-inline"><code><span class="kw">use</span> std.http, std.db, std.env, std.auth, std.html
+<span class="cmt">// 3 reason blocks, 3 evolve blocks</span>
+<span class="cmt">// Contract validation, intent routing</span>
+<span class="cmt">// Dark-themed dashboard</span></code></pre>
+      </a>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="../">Home</a>
+      <a href="../stdlib/">Stdlib</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+    </div>
+    <p class="credit">Built by Danilo Smaldone</p>
+    <p>AID — Auto-Intelligent Development Language © 2026</p>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
