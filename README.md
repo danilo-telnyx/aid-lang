@@ -1,10 +1,11 @@
 # AID — Auto-Intelligent Development Language
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/danilo-telnyx/aid-lang/releases)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/danilo-telnyx/aid-lang/releases/tag/v0.2.0)
 [![License](https://img.shields.io/badge/license-BSL%201.1-green.svg)](LICENSE.md)
 [![Rust](https://img.shields.io/badge/compiler-Rust%201.93-orange.svg)](https://www.rust-lang.org/)
-[![Status](https://img.shields.io/badge/status-v0.1.0-brightgreen.svg)](https://github.com/danilo-telnyx/aid-lang/releases/tag/v0.1.0)
+[![Status](https://img.shields.io/badge/status-v0.2.0%20The%203%20Pillars-brightgreen.svg)](https://github.com/danilo-telnyx/aid-lang/releases/tag/v0.2.0)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20WASM-lightgrey.svg)](#)
+[![Tests](https://img.shields.io/badge/tests-58%20passing-brightgreen.svg)](#)
 
 > *Code that thinks. Software that evolves.*
 
@@ -19,6 +20,30 @@
 AID is a statically typed, compiled programming language with **embedded AI reasoning**. Write decision logic in natural language, and the compiler generates optimized code. Your software gets smarter with every deploy.
 
 AID transpiles to Rust and compiles to native binaries or WASM. No cloud APIs. No ML infrastructure. Intelligence is a language feature.
+
+---
+
+## What's New in v0.2.0 — The 3 Pillars
+
+### 🏛️ Pillar 1: Standard Library
+- **`std.db`** — SQLite database (connect, query, execute, migrate)
+- **`std.env`** — Environment variables & `.env` files
+- **`std.auth`** — JWT tokens, bcrypt hashing, API keys, auth middleware
+- **`std.html`** — HTML templates, static file serving, redirects
+
+### 🧠 Pillar 2: Cortex V1 — Local AI
+- Local LLM via **llama.cpp** sidecar — no cloud, no network
+- `aid cortex pull` / `aid cortex serve` / `aid cortex status`
+- Reason blocks try LLM first, fall back to keyword matching
+- `cortex.toml` configuration
+
+### 🛠️ Pillar 3: Developer Tools
+- **`aid new`** — Project scaffolding (`--template api|minimal`)
+- **VS Code extension** — Syntax highlighting & autocomplete
+- **Package spec** — `aid.toml`, semver, registry design (`docs/PACKAGE-SPEC.md`)
+
+### 🚀 Showcase: Webhook Classifier
+Complete production-ready app using **every AID feature** — std.db, std.env, std.auth, std.html, reason blocks, evolve blocks, contracts, intent routing, Cortex V1.
 
 ---
 
@@ -37,7 +62,7 @@ fn main() {
     }
 
     server.get("/health") => fn(req) -> Response {
-        Response.json({ status: "ok", language: "AID", version: "0.1.0" })
+        Response.json({ status: "ok", language: "AID", version: "0.2.0" })
     }
 
     server.start()
@@ -59,32 +84,36 @@ $ aid run
 
 ---
 
-## Quick Start: `aid new`
+## Quick Start
 
 ```bash
+# Install (requires Rust)
+git clone https://github.com/danilo-telnyx/aid-lang.git
+cd aid-lang/compiler && cargo build --release
+
 # Create a new project
+./target/release/aid new myapp
+cd myapp
+
+# Build & run
+../target/release/aid build main.aid
+./build/aid-main
+```
+
+### `aid new` Templates
+
+```bash
+# Full REST API (default) — templates, static files, migrations
 $ aid new myapp
-  ✓ main.aid
-  ✓ .env
-  ✓ .env.example
-  ✓ .gitignore
-  ✓ README.md
-  ✓ templates/index.html
-  ✓ public/style.css
-  ✓ migrations/001_init.sql
-  ✨ Project 'myapp' created!
 
-$ cd myapp
-$ aid build main.aid
-$ ./build/aid-main
-
-# Or create a minimal project
+# Minimal — just main.aid + config
 $ aid new myapp --template minimal
 ```
 
-Templates:
-- **`api`** (default) — REST API with HTML templates, static files, and migrations
-- **`minimal`** — just `main.aid` and config files
+| Template | Files | Description |
+|----------|-------|-------------|
+| `api` | 8 files | REST API with HTML templates, static assets, migrations |
+| `minimal` | 5 files | Just the essentials — main.aid + config files |
 
 ---
 
@@ -115,6 +144,46 @@ The compiler analyzes your goal, constraints, and examples — then generates an
 
 ---
 
+## 🧠 Cortex V1 — Local AI for Reason Blocks
+
+Cortex is AID's local AI engine. It runs a **llama.cpp sidecar** on your machine — no cloud, no network, complete privacy.
+
+```bash
+# Download a model (~670MB, TinyLlama-1.1B-Chat)
+$ aid cortex pull
+
+# Start the sidecar
+$ aid cortex serve
+
+# Check status
+$ aid cortex status
+  ✓ Model: TinyLlama-1.1B-Chat-v1.0.Q4_K_M.gguf
+  ✓ Sidecar: http://localhost:8090
+  ✓ Fallback: keyword matching (V1)
+```
+
+**How it works:** When you build with Cortex running, reason blocks generate code that:
+1. Sends the prompt (goal + constraints + examples) to the local LLM
+2. Falls back to V1 keyword matching if the sidecar is unavailable
+3. Your code stays exactly the same — Cortex is transparent
+
+Configure via `cortex.toml`:
+```toml
+[model]
+path = ".cortex/models/tinyllama.gguf"
+temperature = 0.3
+max_tokens = 100
+
+[sidecar]
+port = 8090
+timeout_ms = 5000
+
+[fallback]
+enabled = true
+```
+
+---
+
 ## Self-Improving Code: `evolve` Blocks
 
 ```aid
@@ -126,7 +195,7 @@ evolve classify_ticket {
 }
 ```
 
-Every call is logged. Next build, the compiler reads the telemetry and generates better logic. Your code improves just by being used.
+Every call is logged. Next build, the compiler reads the telemetry and generates better logic.
 
 ```bash
 $ curl http://localhost:8080/telemetry
@@ -153,7 +222,58 @@ contract UserAPI {
 }
 ```
 
-The compiler reads the English rules and generates type-safe validators. No boilerplate. No regex. Just describe what valid looks like.
+The compiler reads the English rules and generates type-safe validators.
+
+---
+
+## Standard Library
+
+### 🗄️ `std.db` — SQLite Database
+
+```aid
+use std.db
+
+db.connect("sqlite://data.db")
+db.migrate("migrations/")
+db.execute("INSERT INTO items (name) VALUES ('Widget')")
+items := db.query("SELECT * FROM items")
+```
+
+### 🌍 `std.env` — Environment Variables
+
+```aid
+use std.env
+
+env.load_dotenv()
+port := env.get("PORT")         // Option<String>
+secret := env.require("SECRET") // panics if missing
+all := env.all()                // HashMap
+```
+
+### 🔐 `std.auth` — Authentication
+
+```aid
+use std.auth
+
+token := auth.jwt_sign(claims, "secret")
+claims := auth.jwt_verify(token, "secret")
+hash := auth.hash_password("password")
+ok := auth.verify_password("password", hash)
+key := auth.api_key("X-API-Key")
+```
+
+### 🌐 `std.html` — Templates & Static Files
+
+```aid
+use std.html
+
+content := html.template("templates/page.html", data)
+html.render(content)
+html.serve_static("public/")
+html.redirect("/dashboard")
+```
+
+Template syntax: `{{variable}}`, `{{#each items}}...{{/each}}`, `{{#if condition}}...{{/if}}`
 
 ---
 
@@ -167,115 +287,15 @@ The compiler reads the English rules and generates type-safe validators. No boil
 | 📄 **Auto-Documentation** | Docs generated at every build | ✅ Working |
 | 🎯 **Intent Routing** | Compiler discovers handlers, builds route tables | ✅ Working |
 | ⚡ **WASM Target** | Compile to WebAssembly, deploy anywhere | ✅ Working |
-| 🌍 **std.env** | Environment variables, .env files, config-driven servers | ✅ Working |
-| 🗄️ **std.db** | SQLite database — connect, query, execute, migrate | ✅ Working |
-| 🌐 **std.html** | HTML templates, static files, render, redirect | ✅ Working |
-| 🔐 **std.auth** | JWT tokens, bcrypt hashing, API keys, middleware | ✅ Working |
-| 🆕 **`aid new`** | Project scaffolding with templates (api, minimal) | ✅ Working |
-| 🚀 **Showcase App** | Webhook classifier — every feature in one real app | ✅ Complete |
-| 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
-
----
-
-## Database: `std.db`
-
-```aid
-module database
-use std.http
-use std.db
-
-fn main() {
-    db.connect("sqlite://data.db")
-    db.execute("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT)")
-    db.execute("INSERT OR IGNORE INTO items (id, name) VALUES (1, 'Widget')")
-
-    items := db.query("SELECT * FROM items")
-
-    server := http.new(port: 8080)
-    server.get("/items") => fn(req) -> Response {
-        Response.json({ items: items })
-    }
-}
-```
-
-Operations:
-- `db.connect("sqlite://path.db")` — Open SQLite database
-- `db.execute("SQL")` — Run DDL/DML statements
-- `db.query("SQL")` — Query and return results as JSON
-- `db.migrate("migrations/")` — Run `.sql` files in order
-
-Data is queried at startup and served via HTTP. The compiler generates rusqlite code with full type-safe column mapping.
-
----
-
-## HTML Templates: `std.html`
-
-```aid
-module html_demo
-use std.http
-use std.html
-
-fn main() {
-    server := http.new(port: 8080)
-
-    server.get("/") => fn(req) -> Response {
-        data := { "title": "My App", "heading": "Welcome", "show_footer": true }
-        content := html.template("templates/index.html", data)
-        html.render(content)
-    }
-
-    server.get("/static") => fn(req) -> Response {
-        html.serve_static("public/")
-    }
-
-    server.start()
-}
-```
-
-Operations:
-- `html.template("path", data)` — Render HTML template with variable substitution
-- `html.serve_static("dir/")` — Serve static files (CSS, JS, images)
-- `html.render(content)` — Return HTML response
-- `html.redirect(url)` — HTTP redirect
-
-Template syntax: `{{variable}}`, `{{#each items}}...{{/each}}`, `{{#if condition}}...{{/if}}`
-
----
-
-## Authentication: `std.auth`
-
-```aid
-module auth_demo
-use std.http
-use std.auth
-
-fn main() {
-    server := http.new(port: 8080)
-
-    server.post("/login") => fn(req) -> Response {
-        Response.json({
-            token: auth.jwt_sign("{\"sub\":\"user1\",\"role\":\"admin\"}", "my_secret"),
-            message: "Login successful"
-        })
-    }
-
-    server.post("/register") => fn(req) -> Response {
-        Response.json({
-            hash: auth.hash_password("user_password")
-        })
-    }
-}
-```
-
-Operations:
-- `auth.jwt_sign(claims, secret)` — Generate JWT token with auto-expiry
-- `auth.jwt_verify(token, secret)` — Verify and decode JWT
-- `auth.hash_password(password)` — Bcrypt hash with default cost
-- `auth.verify_password(password, hash)` — Bcrypt verify
-- `auth.api_key(header_name)` — Extract API key from request header
-- `auth.middleware(handler)` — Wrap routes with JWT auth middleware
-
-The compiler generates code using the `jsonwebtoken` and `bcrypt` Rust crates. Dependencies are auto-detected and only included when used.
+| 🗄️ **std.db** | SQLite — connect, query, execute, migrate | ✅ Working |
+| 🌍 **std.env** | Environment variables, .env files | ✅ Working |
+| 🔐 **std.auth** | JWT, bcrypt, API keys, middleware | ✅ Working |
+| 🌐 **std.html** | HTML templates, static files, redirects | ✅ Working |
+| 🧠 **Cortex V1** | Local LLM via llama.cpp sidecar + keyword fallback | ✅ Working |
+| 🆕 **`aid new`** | Project scaffolding (api, minimal templates) | ✅ Working |
+| 🚀 **Webhook Classifier** | Full showcase app — every feature combined | ✅ Complete |
+| 📦 **Package Spec** | aid.toml, semver, registry design | ✅ Designed |
+| 🎨 **VS Code Extension** | Syntax highlighting & autocomplete | ✅ Available |
 
 ---
 
@@ -286,12 +306,13 @@ The compiler generates code using the `jsonwebtoken` and `bcrypt` Rust crates. D
 │  .aid source │────▶│ Parser │────▶│ Cortex  │────▶│ Transpiler │────▶│ Rust │────▶│ Binary │
 └─────────────┘     │ (pest) │     │ Engine  │     │ (codegen)  │     │(cargo│     │+ Docs  │
                     └────────┘     └─────────┘     └────────────┘     └──────┘     └────────┘
-                                        │
-                                   Analyzes:
-                                   • reason blocks
-                                   • evolve telemetry
-                                   • contract rules
-                                   • intent routing
+                                        │                │
+                                   Analyzes:        Generates:
+                                   • reason blocks   • std.db → rusqlite
+                                   • evolve data     • std.auth → jsonwebtoken + bcrypt
+                                   • contracts       • std.html → templates + tower-http
+                                   • intent routes   • std.env → dotenvy
+                                   • cortex config   • cortex → ureq + LLM client
 ```
 
 ---
@@ -335,39 +356,22 @@ async fn fetch(url: string) -> result<string, Error> {
 
 ---
 
-## Quick Start
-
-```bash
-# Clone the repo
-git clone https://github.com/danilo-telnyx/aid-lang.git
-cd aid-lang
-
-# Build the compiler (requires Rust)
-cd compiler && cargo build --release
-
-# Build an example
-./target/release/aid build ../examples/hello.aid
-
-# Run it
-./build/aid-hello
-```
-
----
-
 ## Examples
 
 | Example | Features Used | File |
 |---------|-------------|------|
 | Hello World | HTTP server, text + JSON responses | [`examples/hello.aid`](examples/hello.aid) |
 | Ticket Classifier | Reason blocks, evolve telemetry | [`examples/tickets.aid`](examples/tickets.aid) |
-| Full Demo | Entities, contracts, async, pattern matching, loops | [`examples/full-demo.aid`](examples/full-demo.aid) |
+| Full Demo | Entities, contracts, async, pattern matching | [`examples/full-demo.aid`](examples/full-demo.aid) |
 | Contract Validation | Natural language validation rules | [`examples/contracts.aid`](examples/contracts.aid) |
-| Intent Routing | Auto-discovered routes, /api/routes endpoint | [`examples/intent.aid`](examples/intent.aid) |
+| Intent Routing | Auto-discovered routes, /api/routes | [`examples/intent.aid`](examples/intent.aid) |
 | WASM Module | WASM compilation target | [`examples/wasm-module.aid`](examples/wasm-module.aid) |
 | Env Demo | std.env, .env loading, config-driven server | [`examples/env-demo.aid`](examples/env-demo.aid) |
-| Database | std.db, SQLite, query + serve via HTTP, reason blocks | [`examples/database.aid`](examples/database.aid) |
-| HTML Demo | std.html, templates, static files, redirects | [`examples/html-demo.aid`](examples/html-demo.aid) |
-| Auth Demo | std.auth, JWT tokens, bcrypt hashing, API keys | [`examples/auth-demo.aid`](examples/auth-demo.aid) |
+| Database | std.db, SQLite, CRUD + HTTP API | [`examples/database.aid`](examples/database.aid) |
+| HTML Demo | std.html, templates, static files | [`examples/html-demo.aid`](examples/html-demo.aid) |
+| Auth Demo | std.auth, JWT, bcrypt, API keys | [`examples/auth-demo.aid`](examples/auth-demo.aid) |
+| Cortex Demo | Cortex V1, LLM-powered reason blocks | [`examples/cortex-demo.aid`](examples/cortex-demo.aid) |
+| **Webhook Classifier** | **All features combined** — the showcase | [`examples/webhook-classifier/`](examples/webhook-classifier/) |
 
 ---
 
@@ -378,10 +382,13 @@ cd compiler && cargo build --release
 | AI reasoning built-in | ✅ | ❌ | ❌ | ❌ |
 | Self-improving code | ✅ | ❌ | ❌ | ❌ |
 | Natural language validation | ✅ | ❌ | ❌ | ❌ |
+| Local AI (no cloud) | ✅ | ❌ | ❌ | ❌ |
 | Auto-documentation | ✅ | ❌ | ✅ | ❌ |
 | Type safety | ✅ | ✅ | ✅ | ❌ |
 | HTTP built-in | ✅ | ✅ | ❌ | ❌ |
 | WASM target | ✅ | 🟡 | ✅ | ❌ |
+| Built-in auth (JWT/bcrypt) | ✅ | ❌ | ❌ | ❌ |
+| Built-in database | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -390,22 +397,15 @@ cd compiler && cargo build --release
 AID includes a built-in package manager for dependency management and distribution:
 
 ```bash
-# Add a dependency
-aid install community/redis
-
-# Install all dependencies
-aid install
-
-# Search packages
-aid search redis
-
-# Publish your package
-aid publish
+aid install community/redis   # Add a dependency
+aid install                    # Install all deps
+aid search redis               # Search packages
+aid publish                    # Publish your package
 ```
 
-Packages use `aid.toml` for configuration (like Cargo.toml), support semver versioning, and work with both a central registry (`registry.aidlang.dev`) and Git-based sources.
+Packages use `aid.toml` for configuration, support semver versioning, and work with both a central registry (`registry.aidlang.dev`) and Git-based sources.
 
-See the full [Package Specification](docs/PACKAGE-SPEC.md) for details on the manifest format, registry API, dependency resolution, and security model.
+See the full [Package Specification](docs/PACKAGE-SPEC.md) for details.
 
 ---
 
@@ -424,9 +424,9 @@ See [LICENSE.md](LICENSE.md) for full terms.
 ## Project
 
 - **Owner:** [@danilo-telnyx](https://github.com/danilo-telnyx)
-- **Language:** Compiler written in Rust
+- **Language:** Compiler written in Rust (58 tests)
 - **Created:** February 2026
-- **Status:** v0.1.0 (First Complete Release)
+- **Status:** v0.2.0 — The 3 Pillars
 
 ---
 

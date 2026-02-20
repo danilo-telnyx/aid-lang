@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AID — Auto-Intelligent Development Language</title>
-  <meta name="description" content="AID: A statically typed, compiled language with embedded AI reasoning. Code that thinks. Software that evolves.">
+  <meta name="description" content="AID: A statically typed, compiled language with embedded AI reasoning, local LLM integration, and a full standard library. Code that thinks. Software that evolves.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -13,12 +13,14 @@
 <!-- Nav -->
 <nav>
   <div class="container">
-    <a href="#" class="logo">AID</a>
+    <a href="#" class="logo">AID <span class="version-badge">v0.2.0</span></a>
     <div class="links">
       <a href="#features">Features</a>
-      <a href="#how-it-works">How It Works</a>
+      <a href="#stdlib">Std Library</a>
+      <a href="#cortex">Cortex</a>
+      <a href="#showcase">Showcase</a>
       <a href="#getting-started">Get Started</a>
-      <a href="#">GitHub</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
     </div>
   </div>
 </nav>
@@ -26,12 +28,19 @@
 <!-- Hero -->
 <section class="hero">
   <div class="container fade-in">
+    <div class="hero-badge">v0.2.0 — The 3 Pillars</div>
     <h1>AID</h1>
     <p class="tagline">Code that thinks. Software that evolves.</p>
-    <p class="desc">A statically typed, compiled language with embedded AI reasoning. Declare intelligent decisions in your source code — the compiler handles the rest.</p>
+    <p class="desc">A statically typed, compiled language with embedded AI reasoning, a full standard library, and local LLM integration. Declare intelligent decisions in your source code — the compiler handles the rest.</p>
     <div class="cta">
       <a href="#getting-started" class="btn btn-primary">Get Started</a>
-      <a href="#" class="btn btn-secondary">View on GitHub →</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang" class="btn btn-secondary">View on GitHub →</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-num">58</span><span class="stat-label">Tests</span></div>
+      <div class="stat"><span class="stat-num">12</span><span class="stat-label">Examples</span></div>
+      <div class="stat"><span class="stat-num">4</span><span class="stat-label">Std Modules</span></div>
+      <div class="stat"><span class="stat-num">0</span><span class="stat-label">Cloud APIs</span></div>
     </div>
   </div>
 </section>
@@ -43,8 +52,10 @@
     <p class="section-sub">Clean syntax inspired by Go's simplicity and Rust's safety — with AI reasoning built in.</p>
     <div class="code-tabs">
       <button class="code-tab active" data-tab="hello">hello.aid</button>
-      <button class="code-tab" data-tab="tickets">tickets.aid</button>
-      <button class="code-tab" data-tab="contracts">contracts.aid</button>
+      <button class="code-tab" data-tab="tickets">reason + evolve</button>
+      <button class="code-tab" data-tab="database">std.db</button>
+      <button class="code-tab" data-tab="auth">std.auth</button>
+      <button class="code-tab" data-tab="cortex">cortex</button>
     </div>
     <pre class="code-block active" id="tab-hello"><code><span class="kw">module</span> main
 
@@ -58,27 +69,20 @@
     }
 
     server.<span class="fn-name">get</span>(<span class="str">"/health"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
-        Response.<span class="fn-name">json</span>({ status: <span class="str">"ok"</span>, language: <span class="str">"AID"</span>, version: <span class="str">"0.1.0"</span> })
+        Response.<span class="fn-name">json</span>({ status: <span class="str">"ok"</span>, language: <span class="str">"AID"</span>, version: <span class="str">"0.2.0"</span> })
     }
 
     server.<span class="fn-name">start</span>()
 }</code></pre>
-    <pre class="code-block" id="tab-tickets"><code><span class="kw">module</span> main
-
-<span class="kw">use</span> std.http
-
-<span class="ai">reason</span> <span class="fn-name">classify_ticket</span>(text: <span class="type">string</span>) <span class="op">-></span> <span class="type">string</span> {
-    <span class="ai">goal</span>: <span class="str">"Classify a customer support ticket into a category"</span>
+    <pre class="code-block" id="tab-tickets"><code><span class="ai">reason</span> <span class="fn-name">classify_ticket</span>(text: <span class="type">string</span>) <span class="op">-></span> <span class="type">string</span> {
+    <span class="ai">goal</span>: <span class="str">"Classify a support ticket"</span>
     <span class="ai">constraints</span>: [
         <span class="str">"Return one of: billing, technical, general, urgent"</span>,
-        <span class="str">"If uncertain, prefer general"</span>,
-        <span class="str">"Tickets mentioning outage or down are always urgent"</span>
+        <span class="str">"Outage or down → always urgent"</span>
     ]
     <span class="ai">examples</span>: [
         (<span class="str">"My card was charged twice"</span>, <span class="str">"billing"</span>),
-        (<span class="str">"Server is down"</span>, <span class="str">"urgent"</span>),
-        (<span class="str">"How do I reset my password"</span>, <span class="str">"technical"</span>),
-        (<span class="str">"What integrations do you support"</span>, <span class="str">"general"</span>)
+        (<span class="str">"Server is down"</span>, <span class="str">"urgent"</span>)
     ]
     <span class="ai">fallback</span>: <span class="str">"general"</span>
 }
@@ -87,41 +91,73 @@
     <span class="ai">track</span>: <span class="kw">true</span>
     <span class="ai">retrain_every</span>: <span class="num">500</span>
     <span class="ai">min_accuracy</span>: <span class="num">0.95</span>
-    <span class="ai">approve</span>: <span class="kw">true</span>
 }
 
+<span class="cmt">// With Cortex running → uses local LLM</span>
+<span class="cmt">// Without Cortex → falls back to keyword matching</span></code></pre>
+    <pre class="code-block" id="tab-database"><code><span class="kw">module</span> main
+
+<span class="kw">use</span> std.http
+<span class="kw">use</span> std.db
+<span class="kw">use</span> std.env
+
 <span class="kw">fn</span> <span class="fn-name">main</span>() {
+    env.<span class="fn-name">load_dotenv</span>()
+    db.<span class="fn-name">connect</span>(<span class="str">"sqlite://data.db"</span>)
+    db.<span class="fn-name">migrate</span>(<span class="str">"migrations/"</span>)
+
     server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)
 
-    server.<span class="fn-name">post</span>(<span class="str">"/classify"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
-        result <span class="op">:=</span> <span class="fn-name">classify_ticket</span>(req.body)
-        Response.<span class="fn-name">json</span>({ category: result })
+    server.<span class="fn-name">get</span>(<span class="str">"/items"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        items <span class="op">:=</span> db.<span class="fn-name">query</span>(<span class="str">"SELECT * FROM items"</span>)
+        Response.<span class="fn-name">json</span>({ items: items })
     }
 
     server.<span class="fn-name">start</span>()
 }</code></pre>
-    <pre class="code-block" id="tab-contracts"><code><span class="kw">module</span> main
+    <pre class="code-block" id="tab-auth"><code><span class="kw">module</span> main
 
 <span class="kw">use</span> std.http
+<span class="kw">use</span> std.auth
 
-<span class="kw">entity</span> <span class="type">User</span> {
-    id: <span class="type">int</span>
-    name: <span class="type">string</span>
-    email: <span class="type">string</span>
-    age: <span class="type">int</span>
-    role: <span class="type">string</span> <span class="op">=</span> <span class="str">"viewer"</span>
+<span class="kw">fn</span> <span class="fn-name">main</span>() {
+    server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)
+
+    server.<span class="fn-name">post</span>(<span class="str">"/login"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        token <span class="op">:=</span> auth.<span class="fn-name">jwt_sign</span>(claims, <span class="str">"secret"</span>)
+        Response.<span class="fn-name">json</span>({ token: token })
+    }
+
+    server.<span class="fn-name">post</span>(<span class="str">"/register"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        hash <span class="op">:=</span> auth.<span class="fn-name">hash_password</span>(req.body.password)
+        Response.<span class="fn-name">json</span>({ hash: hash })
+    }
+
+    <span class="cmt">// Protected route with JWT middleware</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/admin"</span>) <span class="op">=></span> auth.<span class="fn-name">middleware</span>(<span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        Response.<span class="fn-name">json</span>({ message: <span class="str">"Welcome, admin"</span> })
+    })
+}</code></pre>
+    <pre class="code-block" id="tab-cortex"><code><span class="cmt">// Cortex V1: Local AI for reason blocks</span>
+<span class="cmt">// No cloud. No API keys. Runs on your machine.</span>
+
+<span class="ai">reason</span> <span class="fn-name">analyze_sentiment</span>(text: <span class="type">string</span>) <span class="op">-></span> <span class="type">string</span> {
+    <span class="ai">goal</span>: <span class="str">"Determine sentiment of customer feedback"</span>
+    <span class="ai">constraints</span>: [
+        <span class="str">"Return: positive, negative, or neutral"</span>,
+        <span class="str">"Consider context and sarcasm"</span>
+    ]
+    <span class="ai">examples</span>: [
+        (<span class="str">"Love the new feature!"</span>, <span class="str">"positive"</span>),
+        (<span class="str">"This is broken again"</span>, <span class="str">"negative"</span>),
+        (<span class="str">"It works I guess"</span>, <span class="str">"neutral"</span>)
+    ]
+    <span class="ai">fallback</span>: <span class="str">"neutral"</span>
 }
 
-<span class="ai">contract</span> <span class="fn-name">UserAPI</span> {
-    <span class="str">"User ID must be a positive integer"</span>
-    <span class="str">"Name must be between 2 and 100 characters"</span>
-    <span class="str">"Email must contain exactly one @ symbol"</span>
-    <span class="str">"Age must be between 13 and 120"</span>
-    <span class="str">"Role must be one of: admin, editor, viewer"</span>
-
-    <span class="kw">fn</span> <span class="fn-name">create</span>(user: <span class="type">User</span>) <span class="op">-></span> result&lt;<span class="type">User</span>, <span class="type">ApiError</span>&gt;
-    <span class="kw">fn</span> <span class="fn-name">get</span>(id: <span class="type">int</span>) <span class="op">-></span> option&lt;<span class="type">User</span>&gt;
-}</code></pre>
+<span class="cmt">// $ aid cortex pull    ← download model</span>
+<span class="cmt">// $ aid cortex serve   ← start sidecar</span>
+<span class="cmt">// $ aid build main.aid ← LLM-powered!</span></code></pre>
   </div>
 </section>
 
@@ -129,7 +165,7 @@
 <section id="features">
   <div class="container fade-in">
     <h2>Built different</h2>
-    <p class="section-sub">Six features that don't exist in any other language.</p>
+    <p class="section-sub">Features that don't exist in any other language.</p>
     <div class="features-grid">
       <div class="feature-card">
         <div class="icon">🧠</div>
@@ -148,8 +184,8 @@
       </div>
       <div class="feature-card">
         <div class="icon">📜</div>
-        <h3>Contracts ✅</h3>
-        <p>Describe validation rules in English. The compiler generates type-safe validators automatically. Working in v0.1.0-alpha — supports positive integer, between, contains, and one-of patterns.</p>
+        <h3>Contracts</h3>
+        <p>Describe validation rules in English. The compiler generates type-safe validators automatically.</p>
       </div>
       <div class="feature-card">
         <div class="icon">📄</div>
@@ -160,6 +196,183 @@
         <div class="icon">⚡</div>
         <h3>WASM Target</h3>
         <p>Compile to WebAssembly. Write once, deploy anywhere — edge, cloud, browser.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Standard Library -->
+<section id="stdlib">
+  <div class="container fade-in">
+    <h2>Standard Library</h2>
+    <p class="section-sub">Four modules that cover 90% of what APIs need. Built-in, zero config.</p>
+    <div class="stdlib-grid">
+      <div class="stdlib-card">
+        <div class="stdlib-header">
+          <span class="stdlib-icon">🗄️</span>
+          <h3>std.db</h3>
+          <span class="stdlib-tag">SQLite</span>
+        </div>
+        <p>Connect, query, execute, migrate. Built on rusqlite with auto column-to-JSON mapping.</p>
+        <pre class="code-inline"><code>db.<span class="fn-name">connect</span>(<span class="str">"sqlite://data.db"</span>)
+db.<span class="fn-name">migrate</span>(<span class="str">"migrations/"</span>)
+items <span class="op">:=</span> db.<span class="fn-name">query</span>(<span class="str">"SELECT * FROM items"</span>)</code></pre>
+      </div>
+      <div class="stdlib-card">
+        <div class="stdlib-header">
+          <span class="stdlib-icon">🌍</span>
+          <h3>std.env</h3>
+          <span class="stdlib-tag">.env files</span>
+        </div>
+        <p>Environment variables and .env files. Config-driven servers out of the box.</p>
+        <pre class="code-inline"><code>env.<span class="fn-name">load_dotenv</span>()
+port <span class="op">:=</span> env.<span class="fn-name">get</span>(<span class="str">"PORT"</span>)
+secret <span class="op">:=</span> env.<span class="fn-name">require</span>(<span class="str">"JWT_SECRET"</span>)</code></pre>
+      </div>
+      <div class="stdlib-card">
+        <div class="stdlib-header">
+          <span class="stdlib-icon">🔐</span>
+          <h3>std.auth</h3>
+          <span class="stdlib-tag">JWT + bcrypt</span>
+        </div>
+        <p>JWT tokens, bcrypt passwords, API keys, auth middleware. All generated from simple function calls.</p>
+        <pre class="code-inline"><code>token <span class="op">:=</span> auth.<span class="fn-name">jwt_sign</span>(claims, secret)
+hash <span class="op">:=</span> auth.<span class="fn-name">hash_password</span>(<span class="str">"pass"</span>)
+auth.<span class="fn-name">middleware</span>(protected_handler)</code></pre>
+      </div>
+      <div class="stdlib-card">
+        <div class="stdlib-header">
+          <span class="stdlib-icon">🌐</span>
+          <h3>std.html</h3>
+          <span class="stdlib-tag">Templates</span>
+        </div>
+        <p>HTML templates with {{variables}}, {{#each}} loops, {{#if}} conditionals. Plus static file serving.</p>
+        <pre class="code-inline"><code>content <span class="op">:=</span> html.<span class="fn-name">template</span>(<span class="str">"page.html"</span>, data)
+html.<span class="fn-name">render</span>(content)
+html.<span class="fn-name">serve_static</span>(<span class="str">"public/"</span>)</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Cortex -->
+<section id="cortex">
+  <div class="container fade-in">
+    <h2>🧠 Cortex V1 — Local AI</h2>
+    <p class="section-sub">Your reason blocks, powered by a local LLM. No cloud. No API keys. No data leaves your machine.</p>
+    <div class="cortex-grid">
+      <div class="cortex-info">
+        <div class="cortex-step">
+          <span class="step-num">1</span>
+          <div>
+            <h4>Pull a model</h4>
+            <code>$ aid cortex pull</code>
+            <p>Downloads TinyLlama-1.1B (~670MB)</p>
+          </div>
+        </div>
+        <div class="cortex-step">
+          <span class="step-num">2</span>
+          <div>
+            <h4>Start the sidecar</h4>
+            <code>$ aid cortex serve</code>
+            <p>Wraps llama.cpp as a local HTTP server</p>
+          </div>
+        </div>
+        <div class="cortex-step">
+          <span class="step-num">3</span>
+          <div>
+            <h4>Build normally</h4>
+            <code>$ aid build main.aid</code>
+            <p>Reason blocks auto-detect Cortex and use LLM</p>
+          </div>
+        </div>
+        <div class="cortex-fallback">
+          <strong>🛡️ Always works:</strong> If Cortex isn't running, reason blocks fall back to V1 keyword matching. Your code never breaks.
+        </div>
+      </div>
+      <div>
+        <span class="reason-label">cortex.toml</span>
+        <pre class="code-block active" style="display:block;border-radius:8px"><code><span class="cmt">[model]</span>
+path = <span class="str">".cortex/models/tinyllama.gguf"</span>
+temperature = <span class="num">0.3</span>
+max_tokens = <span class="num">100</span>
+
+<span class="cmt">[sidecar]</span>
+port = <span class="num">8090</span>
+timeout_ms = <span class="num">5000</span>
+
+<span class="cmt">[fallback]</span>
+enabled = <span class="kw">true</span></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Showcase -->
+<section id="showcase">
+  <div class="container fade-in">
+    <h2>🚀 Showcase: Webhook Classifier</h2>
+    <p class="section-sub">Every AID feature in one production-ready application.</p>
+    <div class="showcase-grid">
+      <div class="showcase-features">
+        <div class="showcase-item"><span>🗄️</span> SQLite storage for webhooks + classifications</div>
+        <div class="showcase-item"><span>🌍</span> Config via .env (port, DB path, API keys)</div>
+        <div class="showcase-item"><span>🔐</span> JWT-protected admin + API key ingestion</div>
+        <div class="showcase-item"><span>🌐</span> Dark-themed dashboard with live stats</div>
+        <div class="showcase-item"><span>🧠</span> 3 reason blocks (classify, priority, source)</div>
+        <div class="showcase-item"><span>🧬</span> 3 evolve blocks tracking accuracy</div>
+        <div class="showcase-item"><span>📜</span> Contract validation for webhook payloads</div>
+        <div class="showcase-item"><span>🎯</span> Intent-routed CRUD endpoints</div>
+      </div>
+      <div>
+        <pre class="code-block active" style="display:block;border-radius:8px"><code><span class="cmt">// webhook-classifier/main.aid (~300 lines)</span>
+<span class="kw">module</span> main
+
+<span class="kw">use</span> std.http
+<span class="kw">use</span> std.db
+<span class="kw">use</span> std.env
+<span class="kw">use</span> std.auth
+<span class="kw">use</span> std.html
+
+<span class="ai">reason</span> <span class="fn-name">classify_webhook</span>(payload: <span class="type">string</span>) <span class="op">-></span> <span class="type">string</span> {
+    <span class="ai">goal</span>: <span class="str">"Classify incoming webhook"</span>
+    <span class="ai">constraints</span>: [
+        <span class="str">"Return one of: payment, alert, deploy,</span>
+<span class="str">         user_event, notification, security,</span>
+<span class="str">         monitoring, other"</span>
+    ]
+    <span class="cmt">// ... examples, fallback</span>
+}
+
+<span class="ai">evolve</span> classify_webhook {
+    <span class="ai">track</span>: <span class="kw">true</span>
+    <span class="ai">retrain_every</span>: <span class="num">1000</span>
+}</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Developer Tools -->
+<section id="devtools">
+  <div class="container fade-in">
+    <h2>🛠️ Developer Tools</h2>
+    <p class="section-sub">Everything you need to be productive from day one.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="icon">🆕</div>
+        <h3><code>aid new</code></h3>
+        <p>Scaffold a new project in seconds. Choose between <code>api</code> (full REST API with templates, migrations) or <code>minimal</code> (just the essentials).</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🎨</div>
+        <h3>VS Code Extension</h3>
+        <p>Syntax highlighting and autocomplete for <code>.aid</code> files. Install from the VS Code marketplace.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📦</div>
+        <h3>Package Spec</h3>
+        <p><code>aid.toml</code> manifest, semver versioning, central registry + Git sources. The foundation for <code>aid install</code>.</p>
       </div>
     </div>
   </div>
@@ -182,59 +395,10 @@
       <div class="pipeline-step">Rust</div>
       <span class="pipeline-arrow">→</span>
       <div class="pipeline-branch">
+        <div class="pipeline-step">Native Binary</div>
         <div class="pipeline-step">WASM Binary</div>
         <div class="pipeline-step">Auto-Docs</div>
       </div>
-    </div>
-  </div>
-</section>
-
-<!-- Reason Block Detailed -->
-<section id="reason-detail">
-  <div class="container fade-in">
-    <h2>The <code style="color:var(--gold)">reason</code> block</h2>
-    <p class="section-sub">Declare what you want. The compiler figures out how.</p>
-    <div class="reason-grid">
-      <div>
-        <span class="reason-label">You write</span>
-        <pre class="code-block active" style="display:block;border-radius:8px"><code><span class="ai">reason</span> <span class="fn-name">classify_ticket</span>(text: <span class="type">string</span>) <span class="op">-></span> <span class="type">string</span> {
-    <span class="ai">goal</span>: <span class="str">"Classify support tickets"</span>
-    <span class="ai">constraints</span>: [
-        <span class="str">"Return: billing, technical, general, urgent"</span>,
-        <span class="str">"Outage or down → always urgent"</span>
-    ]
-    <span class="ai">examples</span>: [
-        (<span class="str">"Card charged twice"</span>, <span class="str">"billing"</span>),
-        (<span class="str">"Server is down"</span>, <span class="str">"urgent"</span>)
-    ]
-    <span class="ai">fallback</span>: <span class="str">"general"</span>
-}</code></pre>
-      </div>
-      <div>
-        <span class="reason-label">Compiler generates</span>
-        <pre class="code-block active" style="display:block;border-radius:8px"><code><span class="cmt">// Optimized keyword-matching function</span>
-<span class="kw">fn</span> <span class="fn-name">classify_ticket</span>(text: &amp;str) -> String {
-    <span class="kw">let</span> lower = text.to_lowercase();
-
-    <span class="cmt">// From constraints</span>
-    <span class="kw">if</span> lower.contains(<span class="str">"outage"</span>)
-       || lower.contains(<span class="str">"down"</span>) {
-        <span class="kw">return</span> <span class="str">"urgent"</span>.into();
-    }
-
-    <span class="cmt">// From examples → keyword extraction</span>
-    <span class="kw">if</span> lower.contains(<span class="str">"card"</span>)
-       || lower.contains(<span class="str">"charged"</span>) {
-        <span class="kw">return</span> <span class="str">"billing"</span>.into();
-    }
-
-    <span class="str">"general"</span>.into() <span class="cmt">// fallback</span>
-}</code></pre>
-      </div>
-    </div>
-    <div class="reason-note">
-      <strong>Today:</strong> smart keyword matching extracted from your examples and constraints.<br>
-      <strong>Tomorrow:</strong> local AI model (Cortex V1). <em>Your code stays exactly the same.</em>
     </div>
   </div>
 </section>
@@ -243,13 +407,18 @@
 <section id="getting-started">
   <div class="container fade-in">
     <h2>Get started</h2>
-    <p class="section-sub">Up and running in 30 seconds.</p>
+    <p class="section-sub">Up and running in 60 seconds.</p>
     <div class="install-block">
-      <div><span class="prompt">$</span> <span class="cmd">curl -sSf https://install.aidlang.dev | sh</span></div>
-      <div style="margin-top:16px"><span class="prompt">$</span> <span class="cmd">aid new my-api</span></div>
-      <div><span class="prompt">$</span> <span class="cmd">aid build</span></div>
-      <div><span class="prompt">$</span> <span class="cmd">aid run</span></div>
-      <div style="margin-top:12px"><span class="cmt"># → Server running on http://localhost:8080</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">git clone https://github.com/danilo-telnyx/aid-lang.git</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">cd aid-lang/compiler && cargo build --release</span></div>
+      <div style="margin-top:16px"><span class="prompt">$</span> <span class="cmd">./target/release/aid new my-api</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">cd my-api</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">../target/release/aid build main.aid</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">./build/aid-main</span></div>
+      <div style="margin-top:12px"><span class="cmt"># → 🚀 Server running on http://localhost:8080</span></div>
+      <div style="margin-top:16px"><span class="cmt"># Optional: enable local AI</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">../target/release/aid cortex pull</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">../target/release/aid cortex serve</span></div>
     </div>
   </div>
 </section>
@@ -267,6 +436,9 @@
         <tbody>
           <tr><td>AI reasoning built-in</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
           <tr><td>Self-improving code</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Local LLM integration</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Built-in auth (JWT/bcrypt)</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Built-in database</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
           <tr><td>Auto-documentation</td><td>✅</td><td>❌</td><td>✅</td><td>❌</td></tr>
           <tr><td>Type safety</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
           <tr><td>WASM target</td><td>✅</td><td>🟡</td><td>✅</td><td>❌</td></tr>
@@ -290,7 +462,7 @@
         <li>Commercial license for revenue-generating products</li>
         <li>Converts to Apache 2.0 on Feb 19, 2030</li>
       </ul>
-      <p style="margin-top:16px"><a href="#">Read COMMERCIAL.md →</a></p>
+      <p style="margin-top:16px"><a href="https://github.com/danilo-telnyx/aid-lang/blob/main/COMMERCIAL.md">Read COMMERCIAL.md →</a></p>
     </div>
   </div>
 </section>
@@ -299,9 +471,9 @@
 <footer>
   <div class="container">
     <div class="footer-links">
-      <a href="#">GitHub</a>
-      <a href="#">Documentation</a>
-      <a href="#">License</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang/wiki">Documentation</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/LICENSE.md">License</a>
     </div>
     <p class="credit">Built by Danilo Smaldone</p>
     <p>AID — Auto-Intelligent Development Language © 2026</p>

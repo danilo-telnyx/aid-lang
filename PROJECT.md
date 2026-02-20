@@ -138,6 +138,8 @@ cargo build --release
 
 **🎉 v0.1.0 COMPLETE — All 7 roadmap issues implemented!**
 
+### v0.2.0 — The 3 Pillars
+
 | 8 | std.env module | ✅ Done | — | env.get, env.require, env.load_dotenv, env.all |
 | 9 | std.db module | ✅ Done | — | db.connect, db.execute, db.query, db.migrate (SQLite) |
 | 10 | std.auth module | ✅ Done | — | auth.jwt_sign, auth.jwt_verify, auth.hash_password, auth.verify_password, auth.api_key, auth.middleware (JWT + bcrypt) |
@@ -145,6 +147,7 @@ cargo build --release
 | 13 | Cortex V1 — Local LLM | ✅ Done | — | Sidecar architecture, llama.cpp, keyword fallback, cortex.toml |
 | 12 | Webhook Classifier Demo | ✅ Done | — | Complete showcase app: all features in one production-ready example |
 | 15 | `aid new` scaffolding | ✅ Done | — | `aid new <name> --template api\|minimal` project generator |
+| 14 | VS Code extension | ✅ Done | — | Syntax highlighting & autocomplete for .aid files |
 
 ### v0.2.0 — Package System Design
 
@@ -152,13 +155,15 @@ cargo build --release
 |---|-------|--------|-------|
 | 16 | Package spec & registry design | ✅ Done | `docs/PACKAGE-SPEC.md` — aid.toml, semver, registry API, dependency resolution, CLI commands |
 
+**🎉 v0.2.0 COMPLETE — The 3 Pillars: Standard Library, Cortex V1, Developer Tools!**
+
 ## Future Roadmap (Beyond Issues)
 
 - **~~Cortex V1:~~** ✅ Done — Local LLM via sidecar + keyword matching fallback
+- **~~VS Code extension:~~** ✅ Done — Syntax highlighting & autocomplete
 - **Evolve V2:** Telemetry-driven retraining + approval workflow
 - **Test framework:** `aid test` with reason block assertions
 - **Package manager:** `aid install <package>` *(spec complete — see docs/PACKAGE-SPEC.md)*
-- **VS Code extension:** Syntax highlighting, autocomplete
 - **Generics / traits:** Full type system
 
 ## Commercial License Tiers
@@ -175,4 +180,5 @@ cargo build --release
 - 2026-02-18: Language concept & spec created
 - 2026-02-19: PoC working, real compiler built, reason blocks, evolve telemetry, contracts, full parser, website, GitHub repo
 - 2026-02-19: v0.1.0 released — all 7 roadmap features complete
+- 2026-02-20: v0.2.0 released — The 3 Pillars (std library, Cortex V1, dev tools), issues #8-16 complete
 - 2030-02-19: BSL license converts to Apache 2.0 (Change Date)
