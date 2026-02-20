@@ -1,0 +1,42 @@
+{
+  "name": "aid-lang",
+  "displayName": "AID Language",
+  "description": "Syntax highlighting and language support for AID (Auto-Intelligent Development Language)",
+  "version": "0.1.0",
+  "publisher": "danilo-smaldone",
+  "license": "BSL-1.1",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danilo-telnyx/aid-lang"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "aid",
+        "aliases": ["AID", "aid"],
+        "extensions": [".aid"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "aid",
+        "scopeName": "source.aid",
+        "path": "./syntaxes/aid.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "aid",
+        "path": "./snippets/aid.json"
+      }
+    ]
+  }
+}

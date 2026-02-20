@@ -1,0 +1,142 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:name}(${2:params}) -> ${3:ReturnType} {",
+      "    ${0}",
+      "}"
+    ],
+    "description": "AID function declaration"
+  },
+  "Async Function": {
+    "prefix": "afn",
+    "body": [
+      "async fn ${1:name}(${2:params}) -> ${3:ReturnType} {",
+      "    ${0}",
+      "}"
+    ],
+    "description": "AID async function declaration"
+  },
+  "Reason Block": {
+    "prefix": "reason",
+    "body": [
+      "reason ${1:name}(${2:input}: ${3:string}) -> ${4:string} {",
+      "    goal: \"${5:Describe what this function should do}\"",
+      "    constraints: [",
+      "        \"${6:constraint}\"",
+      "    ]",
+      "    examples: [",
+      "        (\"${7:input}\", \"${8:output}\")",
+      "    ]",
+      "    fallback: ${9:\"unknown\"}",
+      "}"
+    ],
+    "description": "AID reason block with goal, constraints, examples, fallback"
+  },
+  "Evolve Block": {
+    "prefix": "evolve",
+    "body": [
+      "evolve ${1:reason_name} {",
+      "    track: true",
+      "    retrain_every: ${2:500}",
+      "    min_accuracy: ${3:0.95}",
+      "    approve: ${4:true}",
+      "}"
+    ],
+    "description": "AID evolve block for self-improving code"
+  },
+  "Contract Block": {
+    "prefix": "contract",
+    "body": [
+      "contract ${1:Name} {",
+      "    \"${2:validation rule}\"",
+      "",
+      "    fn ${3:create}(${4:item}: ${5:Entity}) -> result<${5:Entity}, ValidationError>",
+      "    fn ${6:get}(id: int) -> option<${5:Entity}>",
+      "}"
+    ],
+    "description": "AID contract with validation rules"
+  },
+  "Entity": {
+    "prefix": "entity",
+    "body": [
+      "entity ${1:Name} {",
+      "    ${2:field}: ${3:type}",
+      "    ${0}",
+      "}"
+    ],
+    "description": "AID entity (struct) declaration"
+  },
+  "HTTP Route GET": {
+    "prefix": "get",
+    "body": [
+      "server.get(\"${1:/path}\") => fn(req) -> Response {",
+      "    ${0}",
+      "}"
+    ],
+    "description": "AID HTTP GET route"
+  },
+  "HTTP Route POST": {
+    "prefix": "post",
+    "body": [
+      "server.post(\"${1:/path}\") => fn(req) -> Response {",
+      "    ${0}",
+      "}"
+    ],
+    "description": "AID HTTP POST route"
+  },
+  "HTTP Server": {
+    "prefix": "server",
+    "body": [
+      "server := http.new(port: ${1:8080})",
+      "",
+      "server.get(\"/\") => fn(req) -> Response {",
+      "    Response.text(\"${2:Hello from AID}\")",
+      "}",
+      "",
+      "server.start()"
+    ],
+    "description": "AID HTTP server boilerplate"
+  },
+  "Module": {
+    "prefix": "module",
+    "body": [
+      "module ${1:main}",
+      "",
+      "use std.http",
+      "",
+      "${0}"
+    ],
+    "description": "AID module declaration"
+  },
+  "Match Expression": {
+    "prefix": "match",
+    "body": [
+      "match ${1:value} {",
+      "    ${2:pattern} => ${3:result}",
+      "    _ => ${0:default}",
+      "}"
+    ],
+    "description": "AID match expression"
+  },
+  "If-Else": {
+    "prefix": "ife",
+    "body": [
+      "if ${1:condition} {",
+      "    ${2}",
+      "} else {",
+      "    ${0}",
+      "}"
+    ],
+    "description": "AID if-else block"
+  },
+  "Intent Route": {
+    "prefix": "intent",
+    "body": [
+      "server.intent(\"${1:/api}\") => fn(req) -> Response {",
+      "    Response.json({ error: \"No handler found for \" + req.path }, status: 404)",
+      "}"
+    ],
+    "description": "AID intent routing block"
+  }
+}

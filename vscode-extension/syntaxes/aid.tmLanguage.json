@@ -1,0 +1,300 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "AID",
+  "scopeName": "source.aid",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#operators" },
+    { "include": "#reason-block" },
+    { "include": "#evolve-block" },
+    { "include": "#contract-block" },
+    { "include": "#intent-block" },
+    { "include": "#route-decorators" },
+    { "include": "#imports" },
+    { "include": "#function-declaration" },
+    { "include": "#entity-declaration" },
+    { "include": "#function-call" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.doc.aid",
+          "match": "///.*$"
+        },
+        {
+          "name": "comment.line.double-slash.aid",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.aid",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": {
+            "0": { "name": "punctuation.definition.comment.aid" }
+          }
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.aid",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.aid",
+              "match": "\\\\[\"\\\\ntr0]"
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.aid",
+          "match": "\\b0x[0-9a-fA-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.aid",
+          "match": "\\b[0-9]+\\.[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.aid",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.aid",
+          "match": "\\b(if|else|match|for|while|return|break|continue|in|try|await)\\b"
+        },
+        {
+          "name": "keyword.declaration.aid",
+          "match": "\\b(fn|let|mut|const|type|module|use|entity|contract|implement|reason|evolve|intent)\\b"
+        },
+        {
+          "name": "keyword.modifier.aid",
+          "match": "\\b(async|private|static|dynamic|hybrid)\\b"
+        },
+        {
+          "name": "keyword.other.aid",
+          "match": "\\b(goal|constraints|context|examples|fallback|track|retrain_every|min_accuracy|storage|approve)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.aid",
+          "match": "\\b(string|int|float|bool|byte|void)\\b"
+        },
+        {
+          "name": "storage.type.generic.aid",
+          "match": "\\b(array|map|option|result|stream|Option|Result)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.aid",
+          "match": "\\b(true|false|None)\\b"
+        },
+        {
+          "name": "support.function.constructor.aid",
+          "match": "\\b(Some|Ok|Err)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.walrus.aid",
+          "match": ":="
+        },
+        {
+          "name": "keyword.operator.arrow.aid",
+          "match": "=>"
+        },
+        {
+          "name": "keyword.operator.return-type.aid",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.comparison.aid",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.logical.aid",
+          "match": "\\|\\||&&|!"
+        },
+        {
+          "name": "keyword.operator.arithmetic.aid",
+          "match": "[+\\-*/%]"
+        },
+        {
+          "name": "keyword.operator.range.aid",
+          "match": "\\.\\."
+        }
+      ]
+    },
+    "route-decorators": {
+      "patterns": [
+        {
+          "name": "support.function.http-method.aid",
+          "match": "\\b(GET|POST|PUT|DELETE|PATCH)\\b"
+        },
+        {
+          "name": "support.function.http.aid",
+          "match": "\\b(server)\\s*\\.\\s*(get|post|put|delete|patch|intent|group|use|start)\\b",
+          "captures": {
+            "1": { "name": "variable.other.aid" },
+            "2": { "name": "support.function.http.aid" }
+          }
+        }
+      ]
+    },
+    "imports": {
+      "patterns": [
+        {
+          "match": "\\b(use)\\s+(std\\.(db|env|auth|html|http|json))\\b",
+          "captures": {
+            "1": { "name": "keyword.declaration.aid" },
+            "2": { "name": "support.module.stdlib.aid" }
+          }
+        },
+        {
+          "match": "\\b(use)\\s+([a-zA-Z_][a-zA-Z0-9_.{}* ]*)\\b",
+          "captures": {
+            "1": { "name": "keyword.declaration.aid" },
+            "2": { "name": "entity.name.namespace.aid" }
+          }
+        }
+      ]
+    },
+    "reason-block": {
+      "patterns": [
+        {
+          "match": "\\b(reason)\\s*(?:\\((static|dynamic)\\))?\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.aid" },
+            "2": { "name": "keyword.modifier.aid" },
+            "3": { "name": "entity.name.function.reason.aid" }
+          }
+        }
+      ]
+    },
+    "evolve-block": {
+      "patterns": [
+        {
+          "match": "\\b(evolve)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.aid" },
+            "2": { "name": "entity.name.function.evolve.aid" }
+          }
+        }
+      ]
+    },
+    "contract-block": {
+      "patterns": [
+        {
+          "match": "\\b(contract)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.aid" },
+            "2": { "name": "entity.name.type.contract.aid" }
+          }
+        }
+      ]
+    },
+    "intent-block": {
+      "patterns": [
+        {
+          "match": "\\.(intent)\\s*\\(",
+          "captures": {
+            "1": { "name": "support.function.intent.aid" }
+          }
+        }
+      ]
+    },
+    "function-declaration": {
+      "patterns": [
+        {
+          "match": "\\b(fn)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.aid" },
+            "2": { "name": "entity.name.function.aid" }
+          }
+        }
+      ]
+    },
+    "entity-declaration": {
+      "patterns": [
+        {
+          "match": "\\b(entity)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.aid" },
+            "2": { "name": "entity.name.type.aid" }
+          }
+        },
+        {
+          "match": "\\b(implement)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.aid" },
+            "2": { "name": "entity.name.type.aid" }
+          }
+        }
+      ]
+    },
+    "function-call": {
+      "patterns": [
+        {
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.call.aid" }
+          }
+        },
+        {
+          "match": "\\.([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.method.aid" }
+          }
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.bracket.curly.aid",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.bracket.round.aid",
+          "match": "[()]"
+        },
+        {
+          "name": "punctuation.bracket.square.aid",
+          "match": "[\\[\\]]"
+        },
+        {
+          "name": "punctuation.separator.aid",
+          "match": "[,;]"
+        },
+        {
+          "name": "punctuation.accessor.aid",
+          "match": "\\."
+        }
+      ]
+    }
+  }
+}
