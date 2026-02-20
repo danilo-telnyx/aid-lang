@@ -49,7 +49,14 @@
 │   ├── env-demo.aid                     # std.env demo (.env + config-driven server)
 │   ├── database.aid                     # std.db demo (SQLite + HTTP + reason blocks)
 │   ├── html-demo.aid                    # std.html demo (templates + static files)
-│   └── auth-demo.aid                    # std.auth demo (JWT + bcrypt + API keys)
+│   ├── auth-demo.aid                    # std.auth demo (JWT + bcrypt + API keys)
+│   └── webhook-classifier/              # ⭐ THE showcase app — every feature combined
+│       ├── main.aid                     # Full application (~300 lines)
+│       ├── templates/dashboard.html     # Dark-themed dashboard
+│       ├── public/style.css             # Professional CSS
+│       ├── migrations/*.sql             # Schema + seed data
+│       ├── .env.example                 # Config template
+│       └── README.md                    # How to build & run
 ├── poc/transpile.mjs                    # PoC transpiler (Node.js, keep for reference)
 ├── aid                                  # PoC CLI wrapper (bash)
 ├── compiler/                            # ⭐ Real compiler (Rust)
@@ -90,7 +97,7 @@
 - `std.db` module: db.connect, db.execute, db.query, db.migrate → Rust rusqlite with AppState
 - `std.html` module: html.template, html.serve_static, html.render, html.redirect → Axum HTML + tower-http
 - `std.auth` module: auth.jwt_sign, auth.jwt_verify, auth.hash_password, auth.verify_password, auth.api_key, auth.middleware → Rust jsonwebtoken + bcrypt
-- 10 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid, database.aid, html-demo.aid, auth-demo.aid
+- 11 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid, database.aid, html-demo.aid, auth-demo.aid, webhook-classifier/
 
 ## How to Build & Test
 
@@ -130,6 +137,7 @@ cargo build --release
 | 9 | std.db module | ✅ Done | — | db.connect, db.execute, db.query, db.migrate (SQLite) |
 | 10 | std.auth module | ✅ Done | — | auth.jwt_sign, auth.jwt_verify, auth.hash_password, auth.verify_password, auth.api_key, auth.middleware (JWT + bcrypt) |
 | 11 | std.html module | ✅ Done | — | html.template, html.serve_static, html.render, html.redirect |
+| 12 | Webhook Classifier Demo | ✅ Done | — | Complete showcase app: all features in one production-ready example |
 | 15 | `aid new` scaffolding | ✅ Done | — | `aid new <name> --template api\|minimal` project generator |
 
 ### v0.2.0 — Package System Design

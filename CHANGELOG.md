@@ -2,6 +2,32 @@
 
 ## v0.2.0 — 2026-02-20
 
+### 🚀 Webhook Classifier — The Complete AID Showcase App
+
+#### New Example: `examples/webhook-classifier/`
+- **Full production-ready application** using every AID feature in one project
+- `std.db` — SQLite storage for webhooks + classifications + audit log
+- `std.env` — Configuration via `.env` file (port, DB path, API keys)
+- `std.auth` — JWT-protected admin endpoints + API key webhook ingestion
+- `std.html` — Dark-themed dashboard with live stats and webhook table
+- 3 `reason` blocks — `classify_webhook` (8 categories), `detect_priority` (4 levels), `extract_source` (7 services)
+- 3 `evolve` blocks — Track accuracy, auto-retrain at thresholds
+- `contract` block — Validate webhook payloads with natural language rules
+- `intent` routing — Auto-discovered CRUD routes from handler naming
+- SQL migrations with schema + seed data (12 real-world webhook examples)
+- Professional README with architecture diagram and quick-start guide
+
+#### Files Added
+- `examples/webhook-classifier/main.aid` — Complete application (~300 lines)
+- `examples/webhook-classifier/templates/dashboard.html` — Dashboard template
+- `examples/webhook-classifier/public/style.css` — Dark theme CSS (~400 lines)
+- `examples/webhook-classifier/migrations/001_create_webhooks.sql` — Schema
+- `examples/webhook-classifier/migrations/002_seed_data.sql` — Seed data
+- `examples/webhook-classifier/.env.example` — Configuration template
+- `examples/webhook-classifier/README.md` — Documentation
+
+---
+
 ### 🆕 `aid new` Project Scaffolding
 
 #### New Features

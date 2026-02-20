@@ -172,6 +172,7 @@ The compiler reads the English rules and generates type-safe validators. No boil
 | 🌐 **std.html** | HTML templates, static files, render, redirect | ✅ Working |
 | 🔐 **std.auth** | JWT tokens, bcrypt hashing, API keys, middleware | ✅ Working |
 | 🆕 **`aid new`** | Project scaffolding with templates (api, minimal) | ✅ Working |
+| 🚀 **Showcase App** | Webhook classifier — every feature in one real app | ✅ Complete |
 | 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
 
 ---
