@@ -12,6 +12,7 @@
 📖 **Documentation:** [Wiki](https://github.com/danilo-telnyx/aid-lang/wiki)
 📋 **Roadmap:** [Issues](https://github.com/danilo-telnyx/aid-lang/issues)
 📄 **Full Spec:** [Language Documentation](docs/AID-Language-Documentation.md)
+📦 **Package Spec:** [Package & Registry Design](docs/PACKAGE-SPEC.md)
 
 ---
 
@@ -350,6 +351,30 @@ cd compiler && cargo build --release
 | Type safety | ✅ | ✅ | ✅ | ❌ |
 | HTTP built-in | ✅ | ✅ | ❌ | ❌ |
 | WASM target | ✅ | 🟡 | ✅ | ❌ |
+
+---
+
+## Package Manager
+
+AID includes a built-in package manager for dependency management and distribution:
+
+```bash
+# Add a dependency
+aid install community/redis
+
+# Install all dependencies
+aid install
+
+# Search packages
+aid search redis
+
+# Publish your package
+aid publish
+```
+
+Packages use `aid.toml` for configuration (like Cargo.toml), support semver versioning, and work with both a central registry (`registry.aidlang.dev`) and Git-based sources.
+
+See the full [Package Specification](docs/PACKAGE-SPEC.md) for details on the manifest format, registry API, dependency resolution, and security model.
 
 ---
 

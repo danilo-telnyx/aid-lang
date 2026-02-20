@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard-header">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <h1>{{heading}}</h1>
+            </div>
+            <div class="header-actions">
+                <span class="badge badge-green">Live</span>
+                <span class="subtitle">Powered by AID Language</span>
+            </div>
+        </header>
+
+        <nav class="dashboard-nav">
+            <a href="/dashboard" class="nav-link active">Dashboard</a>
+            <a href="/api/webhooks" class="nav-link">API: Webhooks</a>
+            <a href="/api/stats" class="nav-link">API: Stats</a>
+            <a href="/telemetry" class="nav-link">Telemetry</a>
+            <a href="/health" class="nav-link">Health</a>
+        </nav>
+
+        <!-- Stats Cards -->
+        <section class="stats-grid">
+            {{#each stats}}
+            <div class="stat-card">
+                <div class="stat-label">{{classification}}</div>
+                <div class="stat-value">{{count}}</div>
+            </div>
+            {{/each}}
+        </section>
+
+        <!-- Webhook Table -->
+        <section class="table-section">
+            <h2>Recent Webhooks</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Source</th>
+                            <th>Event</th>
+                            <th>Classification</th>
+                            <th>Priority</th>
+                            <th>Confidence</th>
+                            <th>Received</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each webhooks}}
+                        <tr>
+                            <td><code>#{{id}}</code></td>
+                            <td><span class="source-badge">{{source}}</span></td>
+                            <td>{{event_type}}</td>
+                            <td><span class="classification-badge">{{classification}}</span></td>
+                            <td><span class="priority-badge priority-{{priority}}">{{priority}}</span></td>
+                            <td>{{confidence}}</td>
+                            <td>{{created_at}}</td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- How It Works -->
+        <section class="info-section">
+            <h2>How It Works</h2>
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>🧠 reason blocks</h3>
+                    <p>AI classifies webhooks into categories (urgent, billing, technical, security, etc.) using declarative goal/constraints/examples.</p>
+                </div>
+                <div class="info-card">
+                    <h3>📈 evolve blocks</h3>
+                    <p>Tracks classification accuracy over time. When accuracy drops below threshold, triggers retraining.</p>
+                </div>
+                <div class="info-card">
+                    <h3>📋 contract blocks</h3>
+                    <p>Validates webhook payload structure with natural language rules compiled to type-safe validators.</p>
+                </div>
+                <div class="info-card">
+                    <h3>🔀 intent routing</h3>
+                    <p>Auto-discovers handlers by naming convention: create_webhook → POST, list_webhook → GET, etc.</p>
+                </div>
+            </div>
+        </section>
+
+        {{#if show_footer}}
+        <footer class="dashboard-footer">
+            <p>AID Language v0.2.0 &mdash; Code that thinks. Software that evolves.</p>
+            <p class="footer-links">
+                <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a> &middot;
+                <a href="/">API</a> &middot;
+                <a href="/health">Health</a>
+            </p>
+        </footer>
+        {{/if}}
+    </div>
+</body>
+</html>

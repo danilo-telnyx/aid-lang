@@ -37,6 +37,7 @@
 ```
 ~/Documents/projects/aid-lang/
 ├── docs/AID-Language-Documentation.md   # Full spec (25 sections, EBNF grammar)
+├── docs/PACKAGE-SPEC.md                 # Package format, registry & dependency resolution (v0.2.0)
 ├── spec/v0.1-syntax.md                  # Original syntax draft
 ├── examples/
 │   ├── hello.aid                        # Hello world (text + JSON routes)
@@ -129,12 +130,18 @@ cargo build --release
 | 10 | std.auth module | ✅ Done | — | auth.jwt_sign, auth.jwt_verify, auth.hash_password, auth.verify_password, auth.api_key, auth.middleware (JWT + bcrypt) |
 | 11 | std.html module | ✅ Done | — | html.template, html.serve_static, html.render, html.redirect |
 
+### v0.2.0 — Package System Design
+
+| # | Issue | Status | Notes |
+|---|-------|--------|-------|
+| 16 | Package spec & registry design | ✅ Done | `docs/PACKAGE-SPEC.md` — aid.toml, semver, registry API, dependency resolution, CLI commands |
+
 ## Future Roadmap (Beyond Issues)
 
 - **Cortex V1:** Replace keyword matcher with small local model (1B param)
 - **Evolve V2:** Telemetry-driven retraining + approval workflow
 - **Test framework:** `aid test` with reason block assertions
-- **Package manager:** `aid install <package>`
+- **Package manager:** `aid install <package>` *(spec complete — see docs/PACKAGE-SPEC.md)*
 - **VS Code extension:** Syntax highlighting, autocomplete
 - **Generics / traits:** Full type system
 

@@ -80,6 +80,10 @@ pub enum Commands {
     New {
         /// Project name
         name: String,
+
+        /// Project template: api (default) or minimal
+        #[arg(short, long, value_enum, default_value = "api")]
+        template: ProjectTemplate,
     },
 
     /// Compile the project
@@ -194,6 +198,14 @@ pub enum EvolveCommands {
         /// Reason block name
         block: String,
     },
+}
+
+#[derive(Clone, ValueEnum, PartialEq, Debug)]
+pub enum ProjectTemplate {
+    /// REST API scaffold with templates, static files, and migrations
+    Api,
+    /// Minimal project with just main.aid
+    Minimal,
 }
 
 #[derive(Clone, ValueEnum, PartialEq)]
@@ -2742,10 +2754,264 @@ fn handle_run(file: Option<PathBuf>, port: u16, watch: bool) {
     }
 }
 
-fn handle_new(name: &str) {
+fn handle_new(name: &str, template: &ProjectTemplate) {
     print_banner();
-    println!("  {} Creating project '{}'...", "→".dimmed(), name.bold());
-    println!("  {}", "Not implemented yet".yellow());
+    let project_dir = PathBuf::from(name);
+
+    if project_dir.exists() {
+        println!("  {} Directory '{}' already exists", "✗".red().bold(), name);
+        std::process::exit(1);
+    }
+
+    let template_name = match template {
+        ProjectTemplate::Api => "api",
+        ProjectTemplate::Minimal => "minimal",
+    };
+    println!(
+        "  {} Creating project '{}' (template: {})",
+        "→".cyan().bold(),
+        name.bold(),
+        template_name
+    );
+    println!();
+
+    // Create directories
+    fs::create_dir_all(&project_dir).unwrap_or_else(|e| {
+        println!("  {} Could not create directory: {}", "✗".red().bold(), e);
+        std::process::exit(1);
+    });
+
+    let write_file = |rel_path: &str, content: &str| {
+        let path = project_dir.join(rel_path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).ok();
+        }
+        fs::write(&path, content).unwrap_or_else(|e| {
+            println!("  {} Could not write {}: {}", "✗".red().bold(), rel_path, e);
+            std::process::exit(1);
+        });
+        println!("  {} {}", "✓".green().bold(), rel_path);
+    };
+
+    // ── main.aid ────────────────────────────────────────────────────────
+    match template {
+        ProjectTemplate::Api => {
+            write_file("main.aid", &format!(r#"module {name}
+
+use std.http
+use std.env
+use std.html
+
+fn main() {{
+    env.load_dotenv()
+    port := env.get("PORT", "8080")
+
+    server := http.new(port: port)
+
+    server.get("/") => fn(req) -> Response {{
+        html.template("templates/index.html", {{
+            title: "{name}",
+            message: "Welcome to {name}!",
+            version: "0.1.0"
+        }})
+    }}
+
+    server.get("/health") => fn(req) -> Response {{
+        Response.json({{
+            status: "ok",
+            name: "{name}",
+            version: "0.1.0"
+        }})
+    }}
+
+    server.get("/api/info") => fn(req) -> Response {{
+        Response.json({{
+            name: "{name}",
+            description: "An AID application",
+            endpoints: ["/", "/health", "/api/info"]
+        }})
+    }}
+
+    html.serve_static("public/")
+
+    server.start()
+}}
+"#, name = name));
+
+            // ── Templates ───────────────────────────────────────────────
+            write_file("templates/index.html", &format!(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{{{title}}}}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 {{{{title}}}}</h1>
+        <p>{{{{message}}}}</p>
+        <p class="version">v{{{{version}}}}</p>
+        <div class="links">
+            <a href="/health">Health Check</a>
+            <a href="/api/info">API Info</a>
+        </div>
+    </div>
+</body>
+</html>
+"#));
+
+            // ── Static files ────────────────────────────────────────────
+            write_file("public/style.css", r#"* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.container {
+    text-align: center;
+    padding: 3rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+p { margin-bottom: 0.5rem; }
+
+.version {
+    color: #888;
+    font-size: 0.85rem;
+}
+
+.links {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.links a {
+    color: #3a7bd5;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 1px solid #3a7bd5;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.links a:hover {
+    background: #3a7bd5;
+    color: #fff;
+}
+"#);
+
+            // ── Migrations ──────────────────────────────────────────────
+            write_file("migrations/001_init.sql", &format!(r#"-- {name} initial schema
+-- Add your tables here
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO settings (key, value) VALUES ('app_name', '{name}');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('version', '0.1.0');
+"#, name = name));
+        }
+
+        ProjectTemplate::Minimal => {
+            write_file("main.aid", &format!(r#"module {name}
+
+use std.http
+
+fn main() {{
+    server := http.new(port: 8080)
+
+    server.get("/") => fn(req) -> Response {{
+        Response.text("Hello from {name}!")
+    }}
+
+    server.start()
+}}
+"#, name = name));
+        }
+    }
+
+    // ── Common files (both templates) ───────────────────────────────────
+    write_file(".env", "PORT=8080\n");
+    write_file(".env.example", "PORT=8080\n");
+    write_file(".gitignore", "build/\n.cortex/\n*.db\n.env\ntarget/\n");
+
+    write_file("README.md", &format!(r#"# {name}
+
+An [AID](https://danilo-telnyx.github.io/aid-lang/) application.
+
+## Quick Start
+
+```bash
+# Build
+aid build main.aid
+
+# Run
+./build/aid-{name}
+
+# Or use aid run
+aid run main.aid
+```
+
+## Project Structure
+
+```
+{name}/
+├── main.aid          # Application entry point
+├── .env              # Environment variables
+├── .env.example      # Environment template{api_extras}
+```
+
+## API Endpoints
+
+| Method | Path        | Description      |
+|--------|-------------|------------------|
+| GET    | /           | {home_desc}      |
+| GET    | /health     | Health check     |{api_routes}
+"#,
+        name = name,
+        api_extras = if matches!(template, ProjectTemplate::Api) {
+            "\n├── templates/        # HTML templates\n│   └── index.html\n├── public/           # Static files\n│   └── style.css\n└── migrations/       # Database migrations\n    └── 001_init.sql"
+        } else { "" },
+        home_desc = if matches!(template, ProjectTemplate::Api) { "Homepage" } else { "Hello world" },
+        api_routes = if matches!(template, ProjectTemplate::Api) {
+            "\n| GET    | /api/info   | API information  |"
+        } else { "" },
+    ));
+
+    println!();
+    println!("  {} Project '{}' created!", "✨".green().bold(), name.bold());
+    println!();
+    println!("  Next steps:");
+    println!("    {} cd {}", "$".dimmed(), name);
+    println!("    {} aid build main.aid", "$".dimmed());
+    println!("    {} ./build/aid-main", "$".dimmed());
+    println!();
 }
 
 fn handle_clean() {
@@ -2852,7 +3118,7 @@ pub fn run() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::New { name } => handle_new(&name),
+        Commands::New { name, template } => handle_new(&name, &template),
         Commands::Build {
             file,
             release,
@@ -2875,5 +3141,116 @@ pub fn run() {
             EvolveCommands::Status => handle_evolve_status(),
             EvolveCommands::History { block } => handle_evolve_history(&block),
         },
+    }
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn with_temp_dir<F: FnOnce(&Path)>(f: F) {
+        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!("aid-test-{}-{}", std::process::id(), id));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let prev = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+        f(&dir);
+        std::env::set_current_dir(&prev).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_new_api_template_creates_all_files() {
+        with_temp_dir(|_| {
+            handle_new("testapp", &ProjectTemplate::Api);
+
+            assert!(Path::new("testapp/main.aid").exists());
+            assert!(Path::new("testapp/.env").exists());
+            assert!(Path::new("testapp/.env.example").exists());
+            assert!(Path::new("testapp/.gitignore").exists());
+            assert!(Path::new("testapp/README.md").exists());
+            assert!(Path::new("testapp/templates/index.html").exists());
+            assert!(Path::new("testapp/public/style.css").exists());
+            assert!(Path::new("testapp/migrations/001_init.sql").exists());
+        });
+    }
+
+    #[test]
+    fn test_new_minimal_template_creates_only_essentials() {
+        with_temp_dir(|_| {
+            handle_new("minapp", &ProjectTemplate::Minimal);
+
+            assert!(Path::new("minapp/main.aid").exists());
+            assert!(Path::new("minapp/.env").exists());
+            assert!(Path::new("minapp/.gitignore").exists());
+            assert!(Path::new("minapp/README.md").exists());
+            // Minimal should NOT have templates/public/migrations
+            assert!(!Path::new("minapp/templates").exists());
+            assert!(!Path::new("minapp/public").exists());
+            assert!(!Path::new("minapp/migrations").exists());
+        });
+    }
+
+    #[test]
+    fn test_new_api_main_aid_uses_std_modules() {
+        with_temp_dir(|_| {
+            handle_new("modapp", &ProjectTemplate::Api);
+            let content = fs::read_to_string("modapp/main.aid").unwrap();
+            assert!(content.contains("use std.http"));
+            assert!(content.contains("use std.env"));
+            assert!(content.contains("use std.html"));
+            assert!(content.contains("env.load_dotenv()"));
+            assert!(content.contains("html.template("));
+        });
+    }
+
+    #[test]
+    fn test_new_minimal_main_aid_content() {
+        with_temp_dir(|_| {
+            handle_new("simpleapp", &ProjectTemplate::Minimal);
+            let content = fs::read_to_string("simpleapp/main.aid").unwrap();
+            assert!(content.contains("use std.http"));
+            assert!(content.contains("module simpleapp"));
+            assert!(content.contains("Response.text("));
+        });
+    }
+
+    #[test]
+    fn test_new_env_file_content() {
+        with_temp_dir(|_| {
+            handle_new("envapp", &ProjectTemplate::Api);
+            let env_content = fs::read_to_string("envapp/.env").unwrap();
+            assert!(env_content.contains("PORT=8080"));
+            let env_example = fs::read_to_string("envapp/.env.example").unwrap();
+            assert_eq!(env_content, env_example);
+        });
+    }
+
+    #[test]
+    fn test_new_gitignore_content() {
+        with_temp_dir(|_| {
+            handle_new("giapp", &ProjectTemplate::Api);
+            let content = fs::read_to_string("giapp/.gitignore").unwrap();
+            assert!(content.contains("build/"));
+            assert!(content.contains(".cortex/"));
+            assert!(content.contains("*.db"));
+        });
+    }
+
+    #[test]
+    fn test_new_project_name_in_readme() {
+        with_temp_dir(|_| {
+            handle_new("myproject", &ProjectTemplate::Api);
+            let readme = fs::read_to_string("myproject/README.md").unwrap();
+            assert!(readme.contains("# myproject"));
+            assert!(readme.contains("aid build main.aid"));
+        });
     }
 }
