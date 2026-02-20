@@ -2,6 +2,28 @@
 
 ## v0.2.0 — 2026-02-20
 
+### 🗄️ std.db Module (SQLite)
+
+#### New Features
+- **`use std.db`** — import the database module
+- **`db.connect("sqlite://path.db")`** — open SQLite database via rusqlite
+- **`db.execute("SQL")`** — run DDL/DML statements (CREATE, INSERT, UPDATE, DELETE)
+- **`db.query("SQL")`** — query database, returns `Vec<serde_json::Value>` with column mapping
+- **`db.migrate("dir/")`** — run `.sql` migration files in alphabetical order
+- Database query results shared via Axum State for HTTP handlers
+- New codegen module: `compiler/src/codegen/db.rs` with 5 unit tests
+- New example: `examples/database.aid` — tickets table, CRUD, HTTP API, reason blocks
+
+#### Architecture
+- Query results materialized at startup, served via AppState
+- Automatic column-to-JSON mapping (Integer, Real, Text, Blob, Null)
+- `rusqlite` with `bundled` feature (no system SQLite dependency)
+
+#### Dependencies
+- `rusqlite = { version = "0.31", features = ["bundled"] }` added to generated Cargo.toml when `use std.db` is detected
+
+---
+
 ### 🌍 std.env Module
 
 #### New Features

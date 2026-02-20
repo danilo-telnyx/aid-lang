@@ -45,7 +45,8 @@
 │   ├── contracts.aid                    # Contract validation demo
 │   ├── intent.aid                       # Intent routing demo
 │   ├── wasm-module.aid                  # WASM compilation target
-│   └── env-demo.aid                     # std.env demo (.env + config-driven server)
+│   ├── env-demo.aid                     # std.env demo (.env + config-driven server)
+│   └── database.aid                     # std.db demo (SQLite + HTTP + reason blocks)
 ├── poc/transpile.mjs                    # PoC transpiler (Node.js, keep for reference)
 ├── aid                                  # PoC CLI wrapper (bash)
 ├── compiler/                            # ⭐ Real compiler (Rust)
@@ -58,6 +59,7 @@
 │       ├── transpiler/mod.rs            # AST → Rust code generation
 │       ├── codegen/http.rs              # std.http → Axum mapping
 │       ├── codegen/env.rs               # std.env → Rust env/dotenvy mapping
+│       ├── codegen/db.rs               # std.db → rusqlite mapping
 │       └── cli/mod.rs                   # clap CLI
 ├── LICENSE.md                           # BSL 1.1
 ├── COMMERCIAL.md                        # Revenue share tiers
@@ -79,7 +81,8 @@
 - Intent routing: compiler auto-discovers handlers by naming convention, builds route tables, /api/routes endpoint
 - WASM compilation: `aid build --target wasm` → wasm32-wasip1 binaries
 - `std.env` module: env.get, env.require, env.load_dotenv, env.all → Rust std::env + dotenvy
-- 7 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid
+- `std.db` module: db.connect, db.execute, db.query, db.migrate → Rust rusqlite with AppState
+- 8 working examples: hello.aid, tickets.aid, full-demo.aid, contracts.aid, intent.aid, wasm-module.aid, env-demo.aid, database.aid
 
 ## How to Build & Test
 
@@ -116,6 +119,7 @@ cargo build --release
 **🎉 v0.1.0 COMPLETE — All 7 roadmap issues implemented!**
 
 | 8 | std.env module | ✅ Done | — | env.get, env.require, env.load_dotenv, env.all |
+| 9 | std.db module | ✅ Done | — | db.connect, db.execute, db.query, db.migrate (SQLite) |
 
 ## Future Roadmap (Beyond Issues)
 

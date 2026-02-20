@@ -60,8 +60,6 @@ fn main() {
     }
 
     server.post("/classify") => fn(req) -> Response {
-        Response.json({
-            result: classify_ticket(req.body)
-        })
+        Response.text(classify_ticket(req.body))
     }
 }

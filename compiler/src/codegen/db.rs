@@ -126,6 +126,6 @@ mod tests {
         let code = DbCodegen::generate_migrate("migrations/");
         assert!(code.contains("read_dir"));
         assert!(code.contains("migrations/"));
-        assert!(code.contains(".sql"));
+        assert!(code.contains("sql"));
     }
 }

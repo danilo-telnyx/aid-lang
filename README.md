@@ -138,7 +138,39 @@ The compiler reads the English rules and generates type-safe validators. No boil
 | 🎯 **Intent Routing** | Compiler discovers handlers, builds route tables | ✅ Working |
 | ⚡ **WASM Target** | Compile to WebAssembly, deploy anywhere | ✅ Working |
 | 🌍 **std.env** | Environment variables, .env files, config-driven servers | ✅ Working |
+| 🗄️ **std.db** | SQLite database — connect, query, execute, migrate | ✅ Working |
 | 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
+
+---
+
+## Database: `std.db`
+
+```aid
+module database
+use std.http
+use std.db
+
+fn main() {
+    db.connect("sqlite://data.db")
+    db.execute("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT)")
+    db.execute("INSERT OR IGNORE INTO items (id, name) VALUES (1, 'Widget')")
+
+    items := db.query("SELECT * FROM items")
+
+    server := http.new(port: 8080)
+    server.get("/items") => fn(req) -> Response {
+        Response.json({ items: items })
+    }
+}
+```
+
+Operations:
+- `db.connect("sqlite://path.db")` — Open SQLite database
+- `db.execute("SQL")` — Run DDL/DML statements
+- `db.query("SQL")` — Query and return results as JSON
+- `db.migrate("migrations/")` — Run `.sql` files in order
+
+Data is queried at startup and served via HTTP. The compiler generates rusqlite code with full type-safe column mapping.
 
 ---
 
@@ -228,6 +260,7 @@ cd compiler && cargo build --release
 | Intent Routing | Auto-discovered routes, /api/routes endpoint | [`examples/intent.aid`](examples/intent.aid) |
 | WASM Module | WASM compilation target | [`examples/wasm-module.aid`](examples/wasm-module.aid) |
 | Env Demo | std.env, .env loading, config-driven server | [`examples/env-demo.aid`](examples/env-demo.aid) |
+| Database | std.db, SQLite, query + serve via HTTP, reason blocks | [`examples/database.aid`](examples/database.aid) |
 
 ---
 

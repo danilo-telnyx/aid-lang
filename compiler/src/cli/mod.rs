@@ -1505,7 +1505,7 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
             if let Some(reason_name) = reason_block_for_route(&route.path, reason_blocks) {
                 if has_db {
                     main_rs.push_str(&format!(
-                        "async fn {}(axum::extract::State(state): axum::extract::State<AppState>, body: String) -> impl IntoResponse {{\n",
+                        "async fn {}(axum::extract::State(_state): axum::extract::State<AppState>, body: String) -> impl IntoResponse {{\n",
                         route.handler_name
                     ));
                 } else {
@@ -1526,31 +1526,52 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
             }
         }
 
-        // Check if handler references any db query variable
-        let uses_db_var = has_db && db_query_vars.iter().any(|v| route.handler_code.contains(v) || route.handler_code.contains("null"));
-
-        if uses_db_var {
-            // Generate handler that reads from shared db state
-            main_rs.push_str(&format!(
-                "async fn {}(axum::extract::State(state): axum::extract::State<AppState>) -> impl IntoResponse {{\n",
-                route.handler_name
-            ));
-            // Re-generate handler body with state access for db vars
+        if has_db {
+            // Replace db query variable references with state.varname
+            // Only replace when the variable appears as a bare identifier (not inside strings)
             let mut modified_code = route.handler_code.clone();
             for qvar in &db_query_vars {
-                // Replace null references with state.db_data["var"]
-                if modified_code.contains("null") {
-                    // The handler code has the JSON representation — we need to rewrite it
-                    // to use state data
+                // Replace variable references in JSON macro context
+                // Pattern: `varname` appearing as a value (not inside quotes)
+                // We look for patterns like `: varname}` or `: varname,` (JSON value position)
+                // and word-boundary-like replacements
+                let mut result = String::new();
+                let mut chars = modified_code.chars().peekable();
+                let mut in_string = false;
+                let mut i = 0;
+                let code_bytes = modified_code.as_bytes();
+                let qvar_bytes = qvar.as_bytes();
+
+                while i < code_bytes.len() {
+                    if code_bytes[i] == b'"' {
+                        // Toggle string state (naive, doesn't handle escapes perfectly)
+                        in_string = !in_string;
+                        result.push('"');
+                        i += 1;
+                    } else if !in_string && i + qvar_bytes.len() <= code_bytes.len()
+                        && &code_bytes[i..i + qvar_bytes.len()] == qvar_bytes
+                    {
+                        // Check word boundaries
+                        let before_ok = i == 0 || !code_bytes[i - 1].is_ascii_alphanumeric() && code_bytes[i - 1] != b'_';
+                        let after_ok = i + qvar_bytes.len() >= code_bytes.len()
+                            || (!code_bytes[i + qvar_bytes.len()].is_ascii_alphanumeric() && code_bytes[i + qvar_bytes.len()] != b'_');
+                        if before_ok && after_ok {
+                            result.push_str(&format!("state.{}", qvar));
+                            i += qvar_bytes.len();
+                        } else {
+                            result.push(code_bytes[i] as char);
+                            i += 1;
+                        }
+                    } else {
+                        result.push(code_bytes[i] as char);
+                        i += 1;
+                    }
                 }
+                modified_code = result;
             }
-            // For now, generate code that queries db at request time
-            main_rs.push_str(&format!("{}\n", route.handler_code));
-            main_rs.push_str("}\n\n");
-        } else if has_db {
             main_rs.push_str(&format!(
-                "async fn {}(axum::extract::State(_state): axum::extract::State<AppState>) -> impl IntoResponse {{\n{}\n}}\n\n",
-                route.handler_name, route.handler_code
+                "async fn {}(axum::extract::State(state): axum::extract::State<AppState>) -> impl IntoResponse {{\n{}\n}}\n\n",
+                route.handler_name, modified_code
             ));
         } else {
             main_rs.push_str(&format!(
@@ -1602,7 +1623,26 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
     if has_db {
         main_rs.push_str("    // --- std.db setup ---\n");
         main_rs.push_str(&generate_db_setup_code(db_ops));
-        main_rs.push('\n');
+
+        // Build AppState
+        main_rs.push_str("    let state = AppState {\n");
+        for op in db_ops {
+            if let DbOpKind::Query = &op.kind {
+                if let Some(var) = &op.result_var {
+                    main_rs.push_str(&format!("        {var}: {var}.clone(),\n"));
+                }
+            }
+        }
+        // Get db path from connect op
+        let db_path = db_ops.iter().find_map(|op| {
+            if matches!(op.kind, DbOpKind::Connect) {
+                op.args.first().map(|p| p.strip_prefix("sqlite://").unwrap_or(p).to_string())
+            } else {
+                None
+            }
+        }).unwrap_or_else(|| "data.db".to_string());
+        main_rs.push_str(&format!("        db_path: \"{}\".to_string(),\n", db_path));
+        main_rs.push_str("    };\n\n");
     }
 
     // Build intent sub-routers if any
@@ -1650,6 +1690,9 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
     }
     if has_contracts {
         main_rs.push_str("        .route(\"/validate\", routing::post(handle_validate))\n");
+    }
+    if has_db {
+        main_rs.push_str("        .with_state(state)\n");
     }
     main_rs.push_str("    ;\n\n");
 
