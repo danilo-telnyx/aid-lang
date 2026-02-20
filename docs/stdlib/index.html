@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Standard Library — AID Language</title>
+  <meta name="description" content="AID Standard Library: built-in modules for HTTP, database, authentication, environment, and HTML templating.">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="../" class="logo">AID <span class="version-badge">v0.2.0</span></a>
+    <div class="links">
+      <a href="../#features">Features</a>
+      <a href="./" style="color:var(--accent)">Stdlib</a>
+      <a href="../examples/">Examples</a>
+      <a href="../#cortex">Cortex</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" style="padding:140px 0 60px">
+  <div class="container fade-in">
+    <div class="hero-badge">Standard Library</div>
+    <h1 style="font-size:3rem">std.*</h1>
+    <p class="tagline">Five modules that cover 90% of what APIs need. Built-in, zero config.</p>
+    <p class="desc">Every module compiles to proven Rust crates — Axum for HTTP, rusqlite for databases, jsonwebtoken + bcrypt for auth, dotenvy for environment.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Modules</h2>
+    <p class="section-sub">Click any module to see the full API reference, examples, and generated Rust output.</p>
+    <div class="stdlib-grid">
+
+      <a href="http.html" class="stdlib-card" style="text-decoration:none;color:inherit">
+        <div class="stdlib-header">
+          <span class="stdlib-icon">🌐</span>
+          <h3>std.http</h3>
+          <span class="stdlib-tag">Axum</span>
+        </div>
+        <p>HTTP server, routing, JSON responses. The foundation every AID app builds on.</p>
+        <pre class="code-inline"><code>server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)
+server.<span class="fn-name">get</span>(<span class="str">"/"</span>) <span class="op">=></span> handler
+server.<span class="fn-name">start</span>()</code></pre>
+      </a>
+
+      <a href="db.html" class="stdlib-card" style="text-decoration:none;color:inherit">
+        <div class="stdlib-header">
+          <span class="stdlib-icon">🗄️</span>
+          <h3>std.db</h3>
+          <span class="stdlib-tag">SQLite</span>
+        </div>
+        <p>Connect, query, execute, migrate. Built on rusqlite with auto column-to-JSON mapping.</p>
+        <pre class="code-inline"><code>db.<span class="fn-name">connect</span>(<span class="str">"sqlite://data.db"</span>)
+db.<span class="fn-name">migrate</span>(<span class="str">"migrations/"</span>)
+items <span class="op">:=</span> db.<span class="fn-name">query</span>(<span class="str">"SELECT * FROM items"</span>)</code></pre>
+      </a>
+
+      <a href="env.html" class="stdlib-card" style="text-decoration:none;color:inherit">
+        <div class="stdlib-header">
+          <span class="stdlib-icon">🌍</span>
+          <h3>std.env</h3>
+          <span class="stdlib-tag">.env files</span>
+        </div>
+        <p>Environment variables and .env files. Config-driven servers out of the box.</p>
+        <pre class="code-inline"><code>env.<span class="fn-name">load_dotenv</span>()
+port <span class="op">:=</span> env.<span class="fn-name">get</span>(<span class="str">"PORT"</span>)
+secret <span class="op">:=</span> env.<span class="fn-name">require</span>(<span class="str">"JWT_SECRET"</span>)</code></pre>
+      </a>
+
+      <a href="auth.html" class="stdlib-card" style="text-decoration:none;color:inherit">
+        <div class="stdlib-header">
+          <span class="stdlib-icon">🔐</span>
+          <h3>std.auth</h3>
+          <span class="stdlib-tag">JWT + bcrypt</span>
+        </div>
+        <p>JWT tokens, bcrypt passwords, API keys, auth middleware. Production-ready security.</p>
+        <pre class="code-inline"><code>token <span class="op">:=</span> auth.<span class="fn-name">jwt_sign</span>(claims, secret)
+hash <span class="op">:=</span> auth.<span class="fn-name">hash_password</span>(<span class="str">"pass"</span>)
+auth.<span class="fn-name">middleware</span>(handler)</code></pre>
+      </a>
+
+      <a href="html.html" class="stdlib-card" style="text-decoration:none;color:inherit">
+        <div class="stdlib-header">
+          <span class="stdlib-icon">📄</span>
+          <h3>std.html</h3>
+          <span class="stdlib-tag">Templates</span>
+        </div>
+        <p>HTML templates with variables, loops, conditionals. Plus static file serving and redirects.</p>
+        <pre class="code-inline"><code>content <span class="op">:=</span> html.<span class="fn-name">template</span>(<span class="str">"page.html"</span>, data)
+html.<span class="fn-name">render</span>(content)
+html.<span class="fn-name">serve_static</span>(<span class="str">"public/"</span>)</code></pre>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Design Philosophy</h2>
+    <p class="section-sub">Why a standard library matters for AID.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="icon">🎯</div>
+        <h3>Zero Config</h3>
+        <p>Import a module and use it. No package.json, no Cargo.toml, no pip install. The compiler knows what Rust crates to pull.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔒</div>
+        <h3>Secure Defaults</h3>
+        <p>bcrypt cost factor 12, JWT HS256, parameterized queries. You get production security without thinking about it.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⚡</div>
+        <h3>Native Performance</h3>
+        <p>Every module compiles to optimized Rust. No runtime overhead, no interpreter — just fast, safe native code.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="../">Home</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+      <a href="../examples/">Examples</a>
+    </div>
+    <p class="credit">Built by Danilo Smaldone</p>
+    <p>AID — Auto-Intelligent Development Language © 2026</p>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

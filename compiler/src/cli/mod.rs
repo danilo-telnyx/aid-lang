@@ -134,6 +134,9 @@ pub enum Commands {
 
     /// Generate documentation
     Docs {
+        /// Source file (optional — if omitted, uses entry from aid.toml)
+        file: Option<PathBuf>,
+
         /// Serve docs locally after generation
         #[arg(long)]
         serve: bool,
@@ -141,6 +144,14 @@ pub enum Commands {
         /// Output format
         #[arg(long, value_enum, default_value = "html")]
         format: DocsFormat,
+
+        /// Generate docs for all .aid files in current directory
+        #[arg(long)]
+        all: bool,
+
+        /// Output directory (default: docs/generated)
+        #[arg(short, long, default_value = "docs/generated")]
+        output: PathBuf,
     },
 
     /// Format source files
@@ -230,10 +241,11 @@ pub enum BuildTarget {
     Wasm,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Clone, ValueEnum, PartialEq)]
 pub enum DocsFormat {
     Markdown,
     Html,
+    Json,
 }
 
 // ─── Banner ──────────────────────────────────────────────────────────────────
@@ -3056,17 +3068,473 @@ fn handle_clean() {
     println!("  {}", "Not implemented yet".yellow());
 }
 
-fn handle_docs(serve: bool, format: &DocsFormat) {
+fn handle_docs(file: Option<PathBuf>, serve: bool, format: &DocsFormat, all: bool, output: &PathBuf) {
     print_banner();
-    let fmt = match format {
+    let fmt_name = match format {
         DocsFormat::Markdown => "markdown",
         DocsFormat::Html => "html",
+        DocsFormat::Json => "json",
     };
-    println!("  {} Generating docs (format: {})...", "→".dimmed(), fmt);
-    if serve {
-        println!("  {} Serving docs locally...", "→".dimmed());
+    println!("  {} Generating docs (format: {})...", "→".dimmed(), fmt_name);
+
+    // Collect files to document
+    let files: Vec<PathBuf> = if all {
+        let mut found: Vec<PathBuf> = Vec::new();
+        if let Ok(entries) = fs::read_dir(".") {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("aid") {
+                    found.push(path);
+                }
+            }
+        }
+        // Also check examples/ dir
+        if let Ok(entries) = fs::read_dir("examples") {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("aid") {
+                    found.push(path);
+                }
+            }
+        }
+        if found.is_empty() {
+            println!("  {} No .aid files found", "✗".red().bold());
+            return;
+        }
+        found.sort();
+        found
+    } else if let Some(f) = file {
+        vec![f]
+    } else {
+        let config = Config::load_or_default();
+        vec![PathBuf::from(&config.project.entry)]
+    };
+
+    // Create output directory
+    if let Err(e) = fs::create_dir_all(output) {
+        println!("  {} Failed to create output dir: {}", "✗".red().bold(), e);
+        return;
     }
-    println!("  {}", "Not implemented yet".yellow());
+
+    let mut total_generated = 0;
+
+    for aid_file in &files {
+        let source = match fs::read_to_string(aid_file) {
+            Ok(s) => s,
+            Err(e) => {
+                println!("  {} Could not read {}: {}", "✗".red().bold(), aid_file.display(), e);
+                continue;
+            }
+        };
+
+        let program = match crate::parser::parse_file(&source) {
+            Ok(p) => p,
+            Err(e) => {
+                println!("  {} Parse error in {}: {}", "✗".red().bold(), aid_file.display(), e);
+                continue;
+            }
+        };
+
+        let file_stem = aid_file.file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        // Extract all documentation data
+        let reason_blocks = extract_reason_blocks(&program);
+        let evolve_blocks = extract_evolve_blocks(&program);
+        let contracts = extract_contracts(&program);
+        let http_info = extract_http_server(&program);
+        let intent_blocks = extract_intent_blocks(&program);
+        let intent_routes = discover_intent_routes(&program, "/api");
+
+        // Collect std module imports
+        let std_modules: Vec<String> = program.imports.iter()
+            .filter(|imp| imp.path.join(".").starts_with("std."))
+            .map(|imp| imp.path.join("."))
+            .collect();
+
+        match format {
+            DocsFormat::Json => {
+                let doc = generate_docs_json(&file_stem, &program, &reason_blocks, &evolve_blocks, &contracts, &http_info, &intent_routes, &std_modules);
+                let out_path = output.join(format!("{}.json", file_stem));
+                match fs::write(&out_path, &doc) {
+                    Ok(_) => {
+                        println!("  {} {} → {}", "✓".green().bold(), aid_file.display(), out_path.display());
+                        total_generated += 1;
+                    }
+                    Err(e) => println!("  {} Write error: {}", "✗".red().bold(), e),
+                }
+            }
+            DocsFormat::Html => {
+                let doc = generate_docs_html(&file_stem, &program, &reason_blocks, &evolve_blocks, &contracts, &http_info, &intent_routes, &std_modules);
+                let out_path = output.join(format!("{}.html", file_stem));
+                match fs::write(&out_path, &doc) {
+                    Ok(_) => {
+                        println!("  {} {} → {}", "✓".green().bold(), aid_file.display(), out_path.display());
+                        total_generated += 1;
+                    }
+                    Err(e) => println!("  {} Write error: {}", "✗".red().bold(), e),
+                }
+            }
+            DocsFormat::Markdown => {
+                let doc = generate_docs_markdown(&file_stem, &program, &reason_blocks, &evolve_blocks, &contracts, &http_info, &intent_routes, &std_modules);
+                let out_path = output.join(format!("{}.md", file_stem));
+                match fs::write(&out_path, &doc) {
+                    Ok(_) => {
+                        println!("  {} {} → {}", "✓".green().bold(), aid_file.display(), out_path.display());
+                        total_generated += 1;
+                    }
+                    Err(e) => println!("  {} Write error: {}", "✗".red().bold(), e),
+                }
+            }
+        }
+    }
+
+    println!();
+    println!("  {} {} doc(s) generated in {}", "✓".green().bold(), total_generated, output.display());
+
+    if serve {
+        println!("  {} Serving docs at http://localhost:4040 ...", "→".dimmed());
+        println!("  {}", "Press Ctrl+C to stop".dimmed());
+        // Simple HTTP server for docs
+        let output_str = output.to_string_lossy().to_string();
+        let _ = Command::new("python3")
+            .args(["-m", "http.server", "4040", "--directory", &output_str])
+            .status();
+    }
+}
+
+// ─── Documentation Generators ────────────────────────────────────────────────
+
+fn generate_docs_json(
+    name: &str,
+    program: &Program,
+    reason_blocks: &[ReasonBlockInfo],
+    evolve_blocks: &[EvolveBlockInfo],
+    contracts: &[ContractInfo],
+    http_info: &Option<HttpServerInfo>,
+    intent_routes: &[IntentRoute],
+    std_modules: &[String],
+) -> String {
+    let mut doc = serde_json::json!({
+        "module": name,
+        "generated_at": format!("{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()),
+        "compiler_version": "0.1.0",
+    });
+
+    // Entities
+    let entities: Vec<serde_json::Value> = program.declarations.iter().filter_map(|d| {
+        if let Declaration::Entity(e) = d {
+            let fields: Vec<serde_json::Value> = e.fields.iter().map(|f| {
+                serde_json::json!({
+                    "name": f.name,
+                    "type": format!("{:?}", f.ty),
+                    "has_default": f.default.is_some(),
+                })
+            }).collect();
+            Some(serde_json::json!({
+                "name": e.name,
+                "fields": fields,
+            }))
+        } else { None }
+    }).collect();
+    doc["entities"] = serde_json::json!(entities);
+
+    // Functions
+    let functions: Vec<serde_json::Value> = program.declarations.iter().filter_map(|d| {
+        if let Declaration::Function(f) = d {
+            let params: Vec<serde_json::Value> = f.params.iter().map(|p| {
+                serde_json::json!({ "name": p.name, "type": format!("{:?}", p.ty) })
+            }).collect();
+            Some(serde_json::json!({
+                "name": f.name,
+                "params": params,
+                "return_type": format!("{:?}", f.return_type),
+                "is_async": f.is_async,
+            }))
+        } else { None }
+    }).collect();
+    doc["functions"] = serde_json::json!(functions);
+
+    // Routes
+    if let Some(info) = http_info {
+        let routes: Vec<serde_json::Value> = info.routes.iter().map(|r| {
+            serde_json::json!({
+                "method": r.method.to_uppercase(),
+                "path": r.path,
+                "handler": r.handler_name,
+            })
+        }).collect();
+        doc["routes"] = serde_json::json!(routes);
+        doc["server_port"] = serde_json::json!(info.port);
+    }
+
+    // Intent routes
+    if !intent_routes.is_empty() {
+        let iroutes: Vec<serde_json::Value> = intent_routes.iter().map(|r| {
+            serde_json::json!({
+                "method": r.method,
+                "path": r.path,
+                "handler": r.handler_name,
+                "aid_function": r.aid_fn_name,
+            })
+        }).collect();
+        doc["intent_routes"] = serde_json::json!(iroutes);
+    }
+
+    // Reason blocks
+    if !reason_blocks.is_empty() {
+        let rblocks: Vec<serde_json::Value> = reason_blocks.iter().map(|rb| {
+            let examples: Vec<serde_json::Value> = rb.examples.iter().map(|(i, o)| {
+                serde_json::json!({ "input": i, "output": o })
+            }).collect();
+            serde_json::json!({
+                "name": rb.name,
+                "goal": rb.goal,
+                "constraints": rb.constraints,
+                "examples": examples,
+                "fallback": rb.fallback,
+                "params": rb.params.iter().map(|(n,t)| serde_json::json!({"name": n, "type": t})).collect::<Vec<_>>(),
+                "return_type": rb.return_type,
+            })
+        }).collect();
+        doc["reason_blocks"] = serde_json::json!(rblocks);
+    }
+
+    // Contracts
+    if !contracts.is_empty() {
+        let cblocks: Vec<serde_json::Value> = contracts.iter().map(|c| {
+            serde_json::json!({
+                "name": c.name,
+                "rules": c.rules,
+                "entity": c.entity_name,
+            })
+        }).collect();
+        doc["contracts"] = serde_json::json!(cblocks);
+    }
+
+    // Evolve blocks
+    if !evolve_blocks.is_empty() {
+        let eblocks: Vec<serde_json::Value> = evolve_blocks.iter().map(|eb| {
+            let mut stats = serde_json::json!({
+                "target": eb.target,
+                "track": eb.track,
+                "retrain_every": eb.retrain_every,
+                "min_accuracy": eb.min_accuracy,
+                "approve": eb.approve,
+            });
+            // Try reading telemetry
+            if let Some((count, dist)) = read_telemetry_stats(&eb.target) {
+                stats["telemetry_calls"] = serde_json::json!(count);
+                let dist_map: serde_json::Map<String, serde_json::Value> = dist.into_iter()
+                    .map(|(k, v)| (k, serde_json::json!(v)))
+                    .collect();
+                stats["telemetry_distribution"] = serde_json::Value::Object(dist_map);
+            }
+            stats
+        }).collect();
+        doc["evolve_blocks"] = serde_json::json!(eblocks);
+    }
+
+    // Std modules
+    doc["std_modules"] = serde_json::json!(std_modules);
+
+    serde_json::to_string_pretty(&doc).unwrap_or_default()
+}
+
+fn generate_docs_html(
+    name: &str,
+    program: &Program,
+    reason_blocks: &[ReasonBlockInfo],
+    evolve_blocks: &[EvolveBlockInfo],
+    contracts: &[ContractInfo],
+    http_info: &Option<HttpServerInfo>,
+    intent_routes: &[IntentRoute],
+    std_modules: &[String],
+) -> String {
+    let md = generate_docs_markdown(name, program, reason_blocks, evolve_blocks, contracts, http_info, intent_routes, std_modules);
+
+    // Simple HTML wrapper with built-in styling
+    format!(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AID Docs — {name}</title>
+<style>
+  :root {{ --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --border: #30363d; --code-bg: #161b22; }}
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+         background: var(--bg); color: var(--fg); line-height: 1.6; padding: 2rem; max-width: 960px; margin: 0 auto; }}
+  h1 {{ color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1rem; }}
+  h2 {{ color: var(--accent); margin-top: 2rem; margin-bottom: 0.5rem; }}
+  h3 {{ color: #8b949e; margin-top: 1.5rem; }}
+  code {{ background: var(--code-bg); padding: 0.2em 0.4em; border-radius: 3px; font-size: 0.9em; }}
+  pre {{ background: var(--code-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; border: 1px solid var(--border); }}
+  pre code {{ background: none; padding: 0; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
+  th, td {{ border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }}
+  th {{ background: var(--code-bg); color: var(--accent); }}
+  ul {{ padding-left: 1.5rem; }}
+  li {{ margin: 0.25rem 0; }}
+  .badge {{ display: inline-block; padding: 0.2em 0.6em; border-radius: 3px; font-size: 0.8em; font-weight: 600; }}
+  .badge-blue {{ background: #1f6feb33; color: #58a6ff; }}
+  .badge-green {{ background: #23863633; color: #3fb950; }}
+  .badge-yellow {{ background: #9e6a0333; color: #d29922; }}
+  .footer {{ margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: #484f58; font-size: 0.85em; }}
+</style>
+</head>
+<body>
+<pre>{md}</pre>
+<div class="footer">Generated by <strong>AID Compiler</strong> — Auto-Intelligent Development Language</div>
+</body>
+</html>"#, name = name, md = md.replace('<', "&lt;").replace('>', "&gt;"))
+}
+
+fn generate_docs_markdown(
+    name: &str,
+    program: &Program,
+    reason_blocks: &[ReasonBlockInfo],
+    evolve_blocks: &[EvolveBlockInfo],
+    contracts: &[ContractInfo],
+    http_info: &Option<HttpServerInfo>,
+    intent_routes: &[IntentRoute],
+    std_modules: &[String],
+) -> String {
+    let mut doc = String::new();
+    doc.push_str(&format!("# Module: `{}`\n\n", name));
+    doc.push_str(&format!("*Auto-generated by AID Compiler v0.1.0*\n\n"));
+
+    // Module dependencies
+    if !std_modules.is_empty() {
+        doc.push_str("## Module Dependencies\n\n");
+        for m in std_modules {
+            doc.push_str(&format!("- `{}`\n", m));
+        }
+        doc.push_str("\n");
+    }
+
+    // Entities
+    let entities: Vec<&crate::ast::EntityDecl> = program.declarations.iter().filter_map(|d| {
+        if let Declaration::Entity(e) = d { Some(e) } else { None }
+    }).collect();
+    if !entities.is_empty() {
+        doc.push_str("## Entities\n\n");
+        for e in &entities {
+            doc.push_str(&format!("### `{}`\n\n", e.name));
+            doc.push_str("| Field | Type |\n|-------|------|\n");
+            for f in &e.fields {
+                doc.push_str(&format!("| `{}` | `{:?}` |\n", f.name, f.ty));
+            }
+            doc.push_str("\n");
+        }
+    }
+
+    // API Routes
+    if let Some(info) = http_info {
+        doc.push_str("## API Routes\n\n");
+        doc.push_str(&format!("**Server port:** `{}`\n\n", info.port));
+        doc.push_str("| Method | Path | Handler |\n|--------|------|----------|\n");
+        for r in &info.routes {
+            doc.push_str(&format!("| `{}` | `{}` | `{}` |\n", r.method.to_uppercase(), r.path, r.handler_name));
+        }
+        doc.push_str("\n");
+    }
+
+    // Intent routes
+    if !intent_routes.is_empty() {
+        doc.push_str("## Intent Routes (Auto-discovered)\n\n");
+        doc.push_str("| Method | Path | Function |\n|--------|------|----------|\n");
+        for r in intent_routes {
+            doc.push_str(&format!("| `{}` | `{}` | `{}` |\n", r.method, r.path, r.aid_fn_name));
+        }
+        doc.push_str("\n");
+    }
+
+    // Functions
+    let functions: Vec<&crate::ast::Function> = program.declarations.iter().filter_map(|d| {
+        if let Declaration::Function(f) = d { Some(f) } else { None }
+    }).collect();
+    if !functions.is_empty() {
+        doc.push_str("## Functions\n\n");
+        for f in &functions {
+            let params: Vec<String> = f.params.iter().map(|p| format!("{}: {:?}", p.name, p.ty)).collect();
+            doc.push_str(&format!("### `fn {}({}) -> {:?}`\n\n", f.name, params.join(", "), f.return_type));
+        }
+    }
+
+    // Reason blocks
+    if !reason_blocks.is_empty() {
+        doc.push_str("## Reason Blocks\n\n");
+        for rb in reason_blocks {
+            doc.push_str(&format!("### `reason {}`\n\n", rb.name));
+            doc.push_str(&format!("**Goal:** {}\n\n", rb.goal));
+            if !rb.constraints.is_empty() {
+                doc.push_str("**Constraints:**\n");
+                for c in &rb.constraints {
+                    doc.push_str(&format!("- {}\n", c));
+                }
+                doc.push_str("\n");
+            }
+            if !rb.examples.is_empty() {
+                doc.push_str("**Examples:**\n\n");
+                doc.push_str("| Input | Output |\n|-------|--------|\n");
+                for (i, o) in &rb.examples {
+                    doc.push_str(&format!("| \"{}\" | \"{}\" |\n", i, o));
+                }
+                doc.push_str("\n");
+            }
+            if let Some(fb) = &rb.fallback {
+                doc.push_str(&format!("**Fallback:** `\"{}\"`\n\n", fb));
+            }
+        }
+    }
+
+    // Contracts
+    if !contracts.is_empty() {
+        doc.push_str("## Contracts\n\n");
+        for c in contracts {
+            doc.push_str(&format!("### `contract {}`\n\n", c.name));
+            if let Some(entity) = &c.entity_name {
+                doc.push_str(&format!("**Entity:** `{}`\n\n", entity));
+            }
+            doc.push_str("**Rules:**\n");
+            for (i, rule) in c.rules.iter().enumerate() {
+                doc.push_str(&format!("{}. {}\n", i + 1, rule));
+            }
+            doc.push_str("\n");
+        }
+    }
+
+    // Evolve blocks
+    if !evolve_blocks.is_empty() {
+        doc.push_str("## Evolve Blocks\n\n");
+        for eb in evolve_blocks {
+            doc.push_str(&format!("### `evolve {}`\n\n", eb.target));
+            doc.push_str(&format!("- **Tracking:** {}\n", if eb.track { "enabled" } else { "disabled" }));
+            if let Some(interval) = eb.retrain_every {
+                doc.push_str(&format!("- **Retrain every:** {} calls\n", interval));
+            }
+            if let Some(acc) = eb.min_accuracy {
+                doc.push_str(&format!("- **Min accuracy:** {:.0}%\n", acc * 100.0));
+            }
+            if let Some(approve) = eb.approve {
+                doc.push_str(&format!("- **Requires approval:** {}\n", approve));
+            }
+            // Telemetry stats if available
+            if let Some((count, dist)) = read_telemetry_stats(&eb.target) {
+                doc.push_str(&format!("\n**Telemetry:** {} total calls\n\n", count));
+                doc.push_str("| Output | Count | % |\n|--------|-------|---|\n");
+                for (output, cnt) in &dist {
+                    let pct = (*cnt as f64 / count as f64 * 100.0) as u32;
+                    doc.push_str(&format!("| {} | {} | {}% |\n", output, cnt, pct));
+                }
+            }
+            doc.push_str("\n");
+        }
+    }
+
+    doc
 }
 
 fn handle_fmt(files: &[PathBuf]) {
@@ -3377,7 +3845,7 @@ pub fn run() {
         Commands::Run { file, port, watch } => handle_run(file, port, watch),
         Commands::Test { reason } => handle_test(reason),
         Commands::Clean => handle_clean(),
-        Commands::Docs { serve, format } => handle_docs(serve, &format),
+        Commands::Docs { file, serve, format, all, output } => handle_docs(file, serve, &format, all, &output),
         Commands::Fmt { files } => handle_fmt(&files),
         Commands::Lint { files } => handle_lint(&files),
         Commands::Cortex { command } => match command {

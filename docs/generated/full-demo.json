@@ -1,0 +1,241 @@
+{
+  "compiler_version": "0.1.0",
+  "contracts": [
+    {
+      "entity": "User",
+      "name": "UserAPI",
+      "rules": [
+        "User ID must be positive",
+        "Email must be valid",
+        "Name must be between 2 and 100 characters"
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "fields": [
+        {
+          "has_default": false,
+          "name": "id",
+          "type": "Int"
+        },
+        {
+          "has_default": false,
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "has_default": false,
+          "name": "email",
+          "type": "String"
+        },
+        {
+          "has_default": true,
+          "name": "role",
+          "type": "String"
+        }
+      ],
+      "name": "User"
+    },
+    {
+      "fields": [
+        {
+          "has_default": false,
+          "name": "street",
+          "type": "String"
+        },
+        {
+          "has_default": false,
+          "name": "city",
+          "type": "String"
+        },
+        {
+          "has_default": true,
+          "name": "country",
+          "type": "String"
+        }
+      ],
+      "name": "Address"
+    },
+    {
+      "fields": [
+        {
+          "has_default": false,
+          "name": "code",
+          "type": "Int"
+        },
+        {
+          "has_default": false,
+          "name": "message",
+          "type": "String"
+        },
+        {
+          "has_default": true,
+          "name": "details",
+          "type": "Option(String)"
+        }
+      ],
+      "name": "ApiError"
+    }
+  ],
+  "evolve_blocks": [
+    {
+      "approve": true,
+      "min_accuracy": 0.95,
+      "retrain_every": 500,
+      "target": "classify_request",
+      "track": true
+    }
+  ],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "divide",
+      "params": [
+        {
+          "name": "a",
+          "type": "Float"
+        },
+        {
+          "name": "b",
+          "type": "Float"
+        }
+      ],
+      "return_type": "Some(Tuple([Float, Bool]))"
+    },
+    {
+      "is_async": false,
+      "name": "fetch_data",
+      "params": [
+        {
+          "name": "url",
+          "type": "String"
+        }
+      ],
+      "return_type": "Some(Result(String, Entity(\"ApiError\")))"
+    },
+    {
+      "is_async": false,
+      "name": "handle_status",
+      "params": [
+        {
+          "name": "status_code",
+          "type": "Int"
+        }
+      ],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "process_users",
+      "params": [
+        {
+          "name": "users",
+          "type": "Array(Entity(\"User\"))"
+        }
+      ],
+      "return_type": "Some(Int)"
+    },
+    {
+      "is_async": false,
+      "name": "retry_connect",
+      "params": [
+        {
+          "name": "max",
+          "type": "Int"
+        }
+      ],
+      "return_type": "Some(Bool)"
+    },
+    {
+      "is_async": false,
+      "name": "log_users",
+      "params": [
+        {
+          "name": "users",
+          "type": "Array(Entity(\"User\"))"
+        }
+      ],
+      "return_type": "Some(Int)"
+    },
+    {
+      "is_async": false,
+      "name": "load_config",
+      "params": [
+        {
+          "name": "path",
+          "type": "String"
+        }
+      ],
+      "return_type": "Some(Result(String, Entity(\"ApiError\")))"
+    },
+    {
+      "is_async": false,
+      "name": "demo_types",
+      "params": [],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "main",
+      "params": [],
+      "return_type": "None"
+    }
+  ],
+  "generated_at": "1771603933",
+  "module": "full-demo",
+  "reason_blocks": [
+    {
+      "constraints": [
+        "Return one of: query, mutation, subscription",
+        "Requests mentioning delete or remove are always mutation"
+      ],
+      "examples": [
+        {
+          "input": "get all users",
+          "output": "query"
+        },
+        {
+          "input": "delete user 42",
+          "output": "mutation"
+        },
+        {
+          "input": "watch for changes",
+          "output": "subscription"
+        }
+      ],
+      "fallback": "query",
+      "goal": "Classify incoming API request",
+      "name": "classify_request",
+      "params": [
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "return_type": "String"
+    }
+  ],
+  "routes": [
+    {
+      "handler": "handle_root",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "handler": "handle_health",
+      "method": "GET",
+      "path": "/health"
+    },
+    {
+      "handler": "handle_classify",
+      "method": "POST",
+      "path": "/classify"
+    }
+  ],
+  "server_port": 8080,
+  "std_modules": [
+    "std.http",
+    "std.json"
+  ]
+}

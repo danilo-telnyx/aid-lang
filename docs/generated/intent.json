@@ -1,0 +1,191 @@
+{
+  "compiler_version": "0.1.0",
+  "entities": [
+    {
+      "fields": [
+        {
+          "has_default": false,
+          "name": "id",
+          "type": "Int"
+        },
+        {
+          "has_default": false,
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "has_default": false,
+          "name": "email",
+          "type": "String"
+        },
+        {
+          "has_default": true,
+          "name": "role",
+          "type": "String"
+        }
+      ],
+      "name": "User"
+    },
+    {
+      "fields": [
+        {
+          "has_default": false,
+          "name": "id",
+          "type": "Int"
+        },
+        {
+          "has_default": false,
+          "name": "title",
+          "type": "String"
+        },
+        {
+          "has_default": true,
+          "name": "status",
+          "type": "String"
+        }
+      ],
+      "name": "Ticket"
+    }
+  ],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "create_user",
+      "params": [
+        {
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "name": "email",
+          "type": "String"
+        }
+      ],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "get_user",
+      "params": [
+        {
+          "name": "id",
+          "type": "Int"
+        }
+      ],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "list_users",
+      "params": [],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "delete_user",
+      "params": [
+        {
+          "name": "id",
+          "type": "Int"
+        }
+      ],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "create_ticket",
+      "params": [
+        {
+          "name": "title",
+          "type": "String"
+        }
+      ],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "list_tickets",
+      "params": [],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "get_ticket",
+      "params": [
+        {
+          "name": "id",
+          "type": "Int"
+        }
+      ],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "main",
+      "params": [],
+      "return_type": "None"
+    }
+  ],
+  "generated_at": "1771603933",
+  "intent_routes": [
+    {
+      "aid_function": "create_user",
+      "handler": "intent_create_user",
+      "method": "POST",
+      "path": "/api/users"
+    },
+    {
+      "aid_function": "get_user",
+      "handler": "intent_get_user",
+      "method": "GET",
+      "path": "/api/users/{id}"
+    },
+    {
+      "aid_function": "list_users",
+      "handler": "intent_list_users",
+      "method": "GET",
+      "path": "/api/users"
+    },
+    {
+      "aid_function": "delete_user",
+      "handler": "intent_delete_user",
+      "method": "DELETE",
+      "path": "/api/users/{id}"
+    },
+    {
+      "aid_function": "create_ticket",
+      "handler": "intent_create_ticket",
+      "method": "POST",
+      "path": "/api/tickets"
+    },
+    {
+      "aid_function": "list_tickets",
+      "handler": "intent_list_tickets",
+      "method": "GET",
+      "path": "/api/tickets"
+    },
+    {
+      "aid_function": "get_ticket",
+      "handler": "intent_get_ticket",
+      "method": "GET",
+      "path": "/api/tickets/{id}"
+    }
+  ],
+  "module": "intent",
+  "routes": [
+    {
+      "handler": "handle_root",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "handler": "handle_health",
+      "method": "GET",
+      "path": "/health"
+    }
+  ],
+  "server_port": 8080,
+  "std_modules": [
+    "std.http"
+  ]
+}

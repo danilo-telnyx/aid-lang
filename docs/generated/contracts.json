@@ -1,0 +1,99 @@
+{
+  "compiler_version": "0.1.0",
+  "contracts": [
+    {
+      "entity": "User",
+      "name": "UserAPI",
+      "rules": [
+        "User ID must be a positive integer",
+        "Name must be between 2 and 100 characters",
+        "Email must contain exactly one @ symbol",
+        "Age must be between 13 and 120",
+        "Role must be one of: admin, editor, viewer"
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "fields": [
+        {
+          "has_default": false,
+          "name": "id",
+          "type": "Int"
+        },
+        {
+          "has_default": false,
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "has_default": false,
+          "name": "email",
+          "type": "String"
+        },
+        {
+          "has_default": false,
+          "name": "age",
+          "type": "Int"
+        },
+        {
+          "has_default": true,
+          "name": "role",
+          "type": "String"
+        }
+      ],
+      "name": "User"
+    },
+    {
+      "fields": [
+        {
+          "has_default": false,
+          "name": "code",
+          "type": "Int"
+        },
+        {
+          "has_default": false,
+          "name": "message",
+          "type": "String"
+        },
+        {
+          "has_default": false,
+          "name": "field",
+          "type": "String"
+        }
+      ],
+      "name": "ApiError"
+    }
+  ],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "main",
+      "params": [],
+      "return_type": "None"
+    }
+  ],
+  "generated_at": "1771603933",
+  "module": "contracts",
+  "routes": [
+    {
+      "handler": "handle_root",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "handler": "handle_health",
+      "method": "GET",
+      "path": "/health"
+    },
+    {
+      "handler": "handle_users",
+      "method": "POST",
+      "path": "/users"
+    }
+  ],
+  "server_port": 8080,
+  "std_modules": [
+    "std.http"
+  ]
+}

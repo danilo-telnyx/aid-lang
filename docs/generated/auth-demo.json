@@ -1,0 +1,104 @@
+{
+  "compiler_version": "0.1.0",
+  "entities": [
+    {
+      "fields": [
+        {
+          "has_default": false,
+          "name": "username",
+          "type": "String"
+        },
+        {
+          "has_default": false,
+          "name": "password_hash",
+          "type": "String"
+        },
+        {
+          "has_default": true,
+          "name": "role",
+          "type": "String"
+        }
+      ],
+      "name": "User"
+    }
+  ],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "handle_login",
+      "params": [
+        {
+          "name": "username",
+          "type": "String"
+        },
+        {
+          "name": "password",
+          "type": "String"
+        }
+      ],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "handle_protected",
+      "params": [],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "handle_api_data",
+      "params": [],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "handle_register",
+      "params": [
+        {
+          "name": "username",
+          "type": "String"
+        },
+        {
+          "name": "password",
+          "type": "String"
+        }
+      ],
+      "return_type": "Some(String)"
+    },
+    {
+      "is_async": false,
+      "name": "main",
+      "params": [],
+      "return_type": "None"
+    }
+  ],
+  "generated_at": "1771603933",
+  "module": "auth-demo",
+  "routes": [
+    {
+      "handler": "handle_login",
+      "method": "POST",
+      "path": "/login"
+    },
+    {
+      "handler": "handle_protected",
+      "method": "GET",
+      "path": "/protected"
+    },
+    {
+      "handler": "handle_register",
+      "method": "POST",
+      "path": "/register"
+    },
+    {
+      "handler": "handle_root",
+      "method": "GET",
+      "path": "/"
+    }
+  ],
+  "server_port": 8080,
+  "std_modules": [
+    "std.http",
+    "std.auth"
+  ]
+}

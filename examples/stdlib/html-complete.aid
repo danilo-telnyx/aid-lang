@@ -1,0 +1,146 @@
+// ============================================================================
+// AID Language — std.html Complete Example
+// ============================================================================
+// Demonstrates the full std.html module: HTML template rendering with
+// variable interpolation, loops, conditionals, static file serving,
+// redirects, and building a multi-page web application.
+//
+// Build & Run:
+//   $ aid build examples/stdlib/html-complete.aid
+//   $ ./build/aid-html-complete
+//
+// Browse:
+//   http://localhost:8080/              — Homepage with welcome message
+//   http://localhost:8080/dashboard     — Dashboard with stats and tables
+//   http://localhost:8080/items         — Dynamic item list with loop
+//   http://localhost:8080/about         — About page with conditionals
+//   http://localhost:8080/old-page      — Redirect to homepage
+//   http://localhost:8080/static/*      — CSS, JS, images
+//
+// Template features demonstrated:
+//   {{variable}}           — Variable interpolation
+//   {{#each items}}...{{/each}} — Loop over arrays
+//   {{#if condition}}...{{/if}} — Conditional rendering
+//   {{#if}}...{{else}}...{{/if}} — If/else blocks
+// ============================================================================
+
+module html_complete
+
+use std.http
+use std.html
+use std.db
+use std.env
+
+fn main() {
+    env.load_dotenv()
+    db.connect("sqlite://app.db")
+
+    // Seed some data for the dashboard
+    db.execute("CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, status TEXT DEFAULT 'pending', assignee TEXT, created_at TEXT DEFAULT (datetime('now')))")
+    db.execute("INSERT OR IGNORE INTO tasks (id, title, status, assignee) VALUES (1, 'Design landing page', 'complete', 'Alice')")
+    db.execute("INSERT OR IGNORE INTO tasks (id, title, status, assignee) VALUES (2, 'Implement auth flow', 'in_progress', 'Bob')")
+    db.execute("INSERT OR IGNORE INTO tasks (id, title, status, assignee) VALUES (3, 'Write API tests', 'pending', 'Charlie')")
+    db.execute("INSERT OR IGNORE INTO tasks (id, title, status, assignee) VALUES (4, 'Deploy to staging', 'pending', 'Alice')")
+    db.execute("INSERT OR IGNORE INTO tasks (id, title, status, assignee) VALUES (5, 'Security audit', 'in_progress', 'Dave')")
+
+    server := http.new(port: 8080)
+
+    // ─── GET / — Homepage ───────────────────────────────────────────────
+    // html.template() loads an HTML file and replaces {{variable}} markers
+    // with values from the data map. html.render() sends it as text/html.
+    server.get("/") => fn(req) -> Response {
+        data := {
+            "title": "AID Web App",
+            "heading": "Welcome to AID",
+            "message": "This full web application is built entirely with std.html templates.",
+            "show_footer": true,
+            "year": "2026",
+            "nav_items": [
+                { "label": "Home", "url": "/", "active": true },
+                { "label": "Dashboard", "url": "/dashboard", "active": false },
+                { "label": "Items", "url": "/items", "active": false },
+                { "label": "About", "url": "/about", "active": false }
+            ]
+        }
+        content := html.template("templates/index.html", data)
+        html.render(content)
+    }
+
+    // ─── GET /dashboard — Dashboard with dynamic data ───────────────────
+    // Combines database queries with template rendering for a live dashboard.
+    server.get("/dashboard") => fn(req) -> Response {
+        tasks := db.query("SELECT id, title, status, assignee FROM tasks ORDER BY id")
+        data := {
+            "title": "Dashboard — AID Web App",
+            "heading": "Project Dashboard",
+            "tasks": tasks,
+            "stats": {
+                "total": "5",
+                "complete": "1",
+                "in_progress": "2",
+                "pending": "2"
+            },
+            "show_footer": true,
+            "year": "2026"
+        }
+        content := html.template("templates/dashboard.html", data)
+        html.render(content)
+    }
+
+    // ─── GET /items — Item list with {{#each}} loop ─────────────────────
+    // The {{#each items}} block iterates over an array, making each
+    // element's properties available inside the loop.
+    server.get("/items") => fn(req) -> Response {
+        data := {
+            "title": "Products — AID Web App",
+            "heading": "Product Catalog",
+            "items": [
+                { "name": "Wireless Keyboard", "price": "79.99", "in_stock": true },
+                { "name": "Ergonomic Chair", "price": "349.99", "in_stock": true },
+                { "name": "4K Monitor", "price": "599.99", "in_stock": false },
+                { "name": "USB-C Hub", "price": "49.99", "in_stock": true },
+                { "name": "Standing Desk", "price": "699.99", "in_stock": true }
+            ],
+            "show_footer": true,
+            "year": "2026"
+        }
+        content := html.template("templates/items.html", data)
+        html.render(content)
+    }
+
+    // ─── GET /about — Conditional rendering with {{#if}} ────────────────
+    // {{#if show_team}} renders content only when the value is truthy.
+    // {{else}} provides fallback content.
+    server.get("/about") => fn(req) -> Response {
+        data := {
+            "title": "About — AID Web App",
+            "heading": "About This Project",
+            "description": "Built with AID — the language with embedded AI reasoning.",
+            "show_team": true,
+            "team": [
+                { "name": "Danilo Smaldone", "role": "Creator & Lead Developer" }
+            ],
+            "show_footer": true,
+            "year": "2026"
+        }
+        content := html.template("templates/about.html", data)
+        html.render(content)
+    }
+
+    // ─── GET /old-page — Redirect example ───────────────────────────────
+    // html.redirect() sends a 302 redirect to the specified URL.
+    // Use for URL migrations, post-form-submit redirects, etc.
+    server.get("/old-page") => fn(req) -> Response {
+        html.redirect("/")
+    }
+
+    // ─── Static file serving ────────────────────────────────────────────
+    // html.serve_static() maps a URL prefix to a directory on disk.
+    // Serves CSS, JS, images, fonts — anything in the public/ folder.
+    // Files served with correct MIME types and caching headers.
+    server.get("/static") => fn(req) -> Response {
+        html.serve_static("public/")
+    }
+
+    server.start()
+}

@@ -1,0 +1,89 @@
+name: Auto-Documentation
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-docs:
+    name: Generate & Deploy Docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            compiler/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('compiler/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build compiler
+        working-directory: compiler
+        run: cargo build --release
+
+      - name: Generate docs for all examples
+        run: |
+          AID=./compiler/target/release/aid
+          mkdir -p docs/generated
+
+          # Generate docs for each example
+          for f in examples/*.aid; do
+            name=$(basename "$f" .aid)
+            echo "::group::Docs for $name"
+            $AID docs "$f" --format html || true
+            $AID docs "$f" --format json || true
+            echo "::endgroup::"
+          done
+
+          # Generate docs for webhook-classifier
+          if [ -f examples/webhook-classifier/main.aid ]; then
+            echo "::group::Docs for webhook-classifier"
+            $AID docs examples/webhook-classifier/main.aid --format html || true
+            $AID docs examples/webhook-classifier/main.aid --format json || true
+            echo "::endgroup::"
+          fi
+
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p _site
+          # Copy existing docs site
+          cp -r docs/* _site/ 2>/dev/null || true
+          # Copy generated docs
+          cp -r docs/generated/* _site/generated/ 2>/dev/null || true
+          # Create index if not present
+          if [ ! -f _site/index.html ]; then
+            echo '<html><head><meta http-equiv="refresh" content="0;url=AID-Language-Documentation.md"></head></html>' > _site/index.html
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

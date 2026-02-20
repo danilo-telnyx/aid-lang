@@ -1,0 +1,111 @@
+{
+  "compiler_version": "0.1.0",
+  "entities": [
+    {
+      "fields": [
+        {
+          "has_default": false,
+          "name": "id",
+          "type": "Int"
+        },
+        {
+          "has_default": false,
+          "name": "title",
+          "type": "String"
+        },
+        {
+          "has_default": false,
+          "name": "status",
+          "type": "String"
+        },
+        {
+          "has_default": false,
+          "name": "priority",
+          "type": "String"
+        }
+      ],
+      "name": "Ticket"
+    }
+  ],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "main",
+      "params": [],
+      "return_type": "None"
+    }
+  ],
+  "generated_at": "1771603933",
+  "module": "database",
+  "reason_blocks": [
+    {
+      "constraints": [
+        "Tickets mentioning crash or error or bug are always bug",
+        "Tickets mentioning slow or performance or latency are always performance",
+        "Return one of: bug, feature, performance, question"
+      ],
+      "examples": [
+        {
+          "input": "App crashes on login",
+          "output": "bug"
+        },
+        {
+          "input": "Add dark mode",
+          "output": "feature"
+        },
+        {
+          "input": "Page loads slowly",
+          "output": "performance"
+        },
+        {
+          "input": "How do I reset password?",
+          "output": "question"
+        },
+        {
+          "input": "Server error 500",
+          "output": "bug"
+        },
+        {
+          "input": "Request for API docs",
+          "output": "feature"
+        },
+        {
+          "input": "Database queries are slow",
+          "output": "performance"
+        }
+      ],
+      "fallback": "question",
+      "goal": "Classify support tickets into categories",
+      "name": "classify_ticket",
+      "params": [
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "return_type": "String"
+    }
+  ],
+  "routes": [
+    {
+      "handler": "handle_root",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "handler": "handle_tickets",
+      "method": "GET",
+      "path": "/tickets"
+    },
+    {
+      "handler": "handle_classify",
+      "method": "POST",
+      "path": "/classify"
+    }
+  ],
+  "server_port": 8080,
+  "std_modules": [
+    "std.http",
+    "std.db"
+  ]
+}

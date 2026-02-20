@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>std.db — AID Language</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .api-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .api-card h4 { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 1rem; margin-bottom: 8px; }
+    .api-card p { color: var(--text-dim); font-size: 0.9rem; }
+    .rust-output { border-left: 3px solid var(--gold); }
+    .rust-label { display: inline-block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); background: rgba(255,179,71,0.1); padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="../" class="logo">AID <span class="version-badge">v0.2.0</span></a>
+    <div class="links">
+      <a href="./">Stdlib</a>
+      <a href="../examples/">Examples</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" style="padding:140px 0 60px">
+  <div class="container fade-in">
+    <div class="hero-badge">Standard Library</div>
+    <h1 style="font-size:3rem">🗄️ std.db</h1>
+    <p class="tagline">SQLite database — connect, query, execute, migrate.</p>
+    <p class="desc">Built on rusqlite with automatic column-to-JSON mapping. Rows come back as JSON objects ready for your API responses.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>API Reference</h2>
+    <p class="section-sub">Every function in the std.db module.</p>
+
+    <div class="api-card">
+      <h4>db.connect(url: string)</h4>
+      <p>Opens a SQLite database connection. Creates the file if it doesn't exist. The connection is shared across all handlers via AppState.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>db.<span class="fn-name">connect</span>(<span class="str">"sqlite://data.db"</span>)  <span class="cmt">// creates data.db if needed</span></code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>db.execute(sql: string)</h4>
+      <p>Runs a SQL statement that doesn't return rows — CREATE TABLE, INSERT, UPDATE, DELETE. Returns nothing.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>db.<span class="fn-name">execute</span>(<span class="str">"CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)"</span>)
+db.<span class="fn-name">execute</span>(<span class="str">"INSERT INTO users (name) VALUES ('Alice')"</span>)
+db.<span class="fn-name">execute</span>(<span class="str">"UPDATE users SET name = 'Bob' WHERE id = 1"</span>)
+db.<span class="fn-name">execute</span>(<span class="str">"DELETE FROM users WHERE id = 1"</span>)</code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>db.query(sql: string) → array</h4>
+      <p>Runs a SELECT query and returns rows as an array of JSON objects. Column names become keys, values are auto-typed (int, float, string, null).</p>
+      <pre class="code-inline" style="margin-top:12px"><code>users <span class="op">:=</span> db.<span class="fn-name">query</span>(<span class="str">"SELECT id, name, email FROM users"</span>)
+<span class="cmt">// Returns: [{"id": 1, "name": "Alice", "email": "alice@example.com"}, ...]</span>
+
+<span class="cmt">// With WHERE, ORDER BY, GROUP BY, aggregates — any valid SQL</span>
+stats <span class="op">:=</span> db.<span class="fn-name">query</span>(<span class="str">"SELECT category, COUNT(*) as count FROM products GROUP BY category"</span>)</code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>db.migrate(path: string)</h4>
+      <p>Runs SQL migration files from the specified directory in alphabetical order. Each file runs only once (tracked in an internal <code>_migrations</code> table).</p>
+      <pre class="code-inline" style="margin-top:12px"><code>db.<span class="fn-name">migrate</span>(<span class="str">"migrations/"</span>)
+<span class="cmt">// Runs: 001_create_users.sql, 002_add_email.sql, etc.</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Complete Example</h2>
+    <p class="section-sub">A full CRUD API for a product store with SQLite.</p>
+    <pre class="code-block active" style="display:block;border-radius:12px"><code><span class="kw">module</span> main
+
+<span class="kw">use</span> std.http
+<span class="kw">use</span> std.db
+<span class="kw">use</span> std.env
+
+<span class="kw">fn</span> <span class="fn-name">main</span>() {
+    env.<span class="fn-name">load_dotenv</span>()
+    db.<span class="fn-name">connect</span>(<span class="str">"sqlite://products.db"</span>)
+    db.<span class="fn-name">migrate</span>(<span class="str">"migrations/"</span>)
+
+    <span class="cmt">// Seed data</span>
+    db.<span class="fn-name">execute</span>(<span class="str">"INSERT OR IGNORE INTO products (id, name, price, stock) VALUES (1, 'Keyboard', 79.99, 150)"</span>)
+
+    server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)
+
+    <span class="cmt">// List all products</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/products"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        products <span class="op">:=</span> db.<span class="fn-name">query</span>(<span class="str">"SELECT * FROM products ORDER BY id"</span>)
+        Response.<span class="fn-name">json</span>({ products: products })
+    }
+
+    <span class="cmt">// Create product</span>
+    server.<span class="fn-name">post</span>(<span class="str">"/products"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        db.<span class="fn-name">execute</span>(<span class="str">"INSERT INTO products (name, price, stock) VALUES (...)"</span>)
+        Response.<span class="fn-name">json</span>({ message: <span class="str">"Created"</span> })
+    }
+
+    <span class="cmt">// Get by ID</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/products/:id"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        product <span class="op">:=</span> db.<span class="fn-name">query</span>(<span class="str">"SELECT * FROM products WHERE id = "</span> + req.params.id)
+        Response.<span class="fn-name">json</span>({ product: product })
+    }
+
+    <span class="cmt">// Update</span>
+    server.<span class="fn-name">put</span>(<span class="str">"/products/:id"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        db.<span class="fn-name">execute</span>(<span class="str">"UPDATE products SET price = ... WHERE id = ..."</span>)
+        Response.<span class="fn-name">json</span>({ message: <span class="str">"Updated"</span> })
+    }
+
+    <span class="cmt">// Delete</span>
+    server.<span class="fn-name">delete</span>(<span class="str">"/products/:id"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        db.<span class="fn-name">execute</span>(<span class="str">"DELETE FROM products WHERE id = ..."</span>)
+        Response.<span class="fn-name">json</span>({ message: <span class="str">"Deleted"</span> })
+    }
+
+    <span class="cmt">// Aggregation</span>
+    server.<span class="fn-name">get</span>(<span class="str">"/stats"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        stats <span class="op">:=</span> db.<span class="fn-name">query</span>(<span class="str">"SELECT category, COUNT(*) as count FROM products GROUP BY category"</span>)
+        Response.<span class="fn-name">json</span>({ stats: stats })
+    }
+
+    server.<span class="fn-name">start</span>()
+}</code></pre>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Generated Rust</h2>
+    <p class="section-sub">What the compiler produces for database operations.</p>
+    <span class="rust-label">Transpiled Output (simplified)</span>
+    <pre class="code-block active rust-output" style="display:block;border-radius:12px"><code><span class="kw">use</span> rusqlite::Connection;
+<span class="kw">use</span> std::sync::{Arc, Mutex};
+
+<span class="cmt">// db.connect("sqlite://products.db")</span>
+<span class="kw">let</span> conn = Connection::open(<span class="str">"products.db"</span>).unwrap();
+<span class="kw">let</span> db = Arc::new(Mutex::new(conn));
+
+<span class="cmt">// db.query("SELECT * FROM products")</span>
+<span class="kw">let</span> db = state.db.lock().unwrap();
+<span class="kw">let mut</span> stmt = db.prepare(<span class="str">"SELECT * FROM products"</span>).unwrap();
+<span class="kw">let</span> columns: Vec&lt;String&gt; = stmt.column_names()
+    .iter().map(|c| c.to_string()).collect();
+<span class="kw">let</span> rows = stmt.query_map([], |row| {
+    <span class="cmt">// Auto-maps each column to serde_json::Value</span>
+    Ok(json_from_row(row, &columns))
+}).unwrap();
+
+<span class="cmt">// db.migrate("migrations/")</span>
+<span class="cmt">// Reads .sql files alphabetically, tracks in _migrations table</span></code></pre>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="./">← Stdlib</a>
+      <a href="../">Home</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang/blob/main/examples/stdlib/db-complete.aid">Source</a>
+    </div>
+    <p>AID — Auto-Intelligent Development Language © 2026</p>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

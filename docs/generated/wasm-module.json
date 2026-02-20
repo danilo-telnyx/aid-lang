@@ -1,0 +1,52 @@
+{
+  "compiler_version": "0.1.0",
+  "entities": [],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "greet",
+      "params": [
+        {
+          "name": "name",
+          "type": "String"
+        }
+      ],
+      "return_type": "Some(String)"
+    }
+  ],
+  "generated_at": "1771603933",
+  "module": "wasm-module",
+  "reason_blocks": [
+    {
+      "constraints": [
+        "Return one of: billing, technical, general, urgent",
+        "Tickets mentioning outage or down are always urgent"
+      ],
+      "examples": [
+        {
+          "input": "My card was charged twice",
+          "output": "billing"
+        },
+        {
+          "input": "Server is down",
+          "output": "urgent"
+        },
+        {
+          "input": "How do I reset my password",
+          "output": "technical"
+        }
+      ],
+      "fallback": "general",
+      "goal": "Classify a support ticket",
+      "name": "classify_ticket",
+      "params": [
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "return_type": "String"
+    }
+  ],
+  "std_modules": []
+}

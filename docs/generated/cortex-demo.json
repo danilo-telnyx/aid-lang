@@ -1,0 +1,183 @@
+{
+  "compiler_version": "0.1.0",
+  "entities": [],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "main",
+      "params": [],
+      "return_type": "None"
+    }
+  ],
+  "generated_at": "1771603933",
+  "module": "cortex-demo",
+  "reason_blocks": [
+    {
+      "constraints": [
+        "Return one of: billing, technical, general, urgent",
+        "If uncertain, return 'general'",
+        "Tickets mentioning 'outage' or 'down' are always 'urgent'"
+      ],
+      "examples": [
+        {
+          "input": "My credit card was charged twice",
+          "output": "billing"
+        },
+        {
+          "input": "I need a refund for last month",
+          "output": "billing"
+        },
+        {
+          "input": "The server is completely down",
+          "output": "urgent"
+        },
+        {
+          "input": "API is returning 500 errors",
+          "output": "technical"
+        },
+        {
+          "input": "How do I reset my password?",
+          "output": "technical"
+        },
+        {
+          "input": "Can't connect to the database",
+          "output": "technical"
+        },
+        {
+          "input": "I have a question about your product",
+          "output": "general"
+        },
+        {
+          "input": "What are your business hours?",
+          "output": "general"
+        }
+      ],
+      "fallback": "general",
+      "goal": "Classify a customer support ticket into a category",
+      "name": "classify_ticket",
+      "params": [
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "return_type": "String"
+    },
+    {
+      "constraints": [
+        "Return one of: positive, negative, neutral",
+        "Be conservative — lean toward neutral when uncertain"
+      ],
+      "examples": [
+        {
+          "input": "This product is amazing and works perfectly!",
+          "output": "positive"
+        },
+        {
+          "input": "Great customer service, very helpful",
+          "output": "positive"
+        },
+        {
+          "input": "Terrible experience, nothing works",
+          "output": "negative"
+        },
+        {
+          "input": "The app keeps crashing constantly",
+          "output": "negative"
+        },
+        {
+          "input": "I received my order today",
+          "output": "neutral"
+        },
+        {
+          "input": "Can you tell me your office hours?",
+          "output": "neutral"
+        }
+      ],
+      "fallback": "neutral",
+      "goal": "Analyze the sentiment of the text",
+      "name": "analyze_sentiment",
+      "params": [
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "return_type": "String"
+    },
+    {
+      "constraints": [
+        "Return one of: critical, high, medium, low",
+        "Mentions of 'outage' or 'down' or 'emergency' are always critical",
+        "Security issues are always high priority"
+      ],
+      "examples": [
+        {
+          "input": "Everything is down, customers can't access anything",
+          "output": "critical"
+        },
+        {
+          "input": "Production database is not responding",
+          "output": "critical"
+        },
+        {
+          "input": "There's a security vulnerability in the API",
+          "output": "high"
+        },
+        {
+          "input": "Login page is loading slowly",
+          "output": "medium"
+        },
+        {
+          "input": "Can you update my email address?",
+          "output": "low"
+        },
+        {
+          "input": "Feature request: add dark mode",
+          "output": "low"
+        }
+      ],
+      "fallback": "medium",
+      "goal": "Detect the priority level of a support request",
+      "name": "detect_priority",
+      "params": [
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "return_type": "String"
+    }
+  ],
+  "routes": [
+    {
+      "handler": "handle_root",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "handler": "handle_classify",
+      "method": "POST",
+      "path": "/classify"
+    },
+    {
+      "handler": "handle_sentiment",
+      "method": "POST",
+      "path": "/sentiment"
+    },
+    {
+      "handler": "handle_priority",
+      "method": "POST",
+      "path": "/priority"
+    },
+    {
+      "handler": "handle_cortexstatus",
+      "method": "GET",
+      "path": "/cortex-status"
+    }
+  ],
+  "server_port": 8080,
+  "std_modules": [
+    "std.http"
+  ]
+}

@@ -1,0 +1,156 @@
+// ============================================================================
+// AID Language — std.db Complete Example
+// ============================================================================
+// Demonstrates the full std.db module: SQLite database operations including
+// table creation, CRUD operations, migrations, parameterized queries,
+// and serving data via HTTP endpoints.
+//
+// Build & Run:
+//   $ aid build examples/stdlib/db-complete.aid
+//   $ ./build/aid-db-complete
+//
+// Test endpoints:
+//   $ curl http://localhost:8080/                    # API overview
+//   $ curl http://localhost:8080/products            # List all products
+//   $ curl -X POST http://localhost:8080/products \
+//       -d '{"name":"Laptop","price":999.99,"stock":50}'  # Create product
+//   $ curl http://localhost:8080/products/1          # Get product by ID
+//   $ curl -X PUT http://localhost:8080/products/1 \
+//       -d '{"price":899.99}'                        # Update product
+//   $ curl -X DELETE http://localhost:8080/products/1 # Delete product
+//   $ curl http://localhost:8080/stats               # Aggregation query
+// ============================================================================
+
+module db_complete
+
+use std.http
+use std.db
+use std.env
+
+// ─── Product entity ─────────────────────────────────────────────────────────
+// Defines the shape of data we're working with.
+entity Product {
+    id: int
+    name: string
+    price: float
+    stock: int
+    category: string
+    created_at: string
+}
+
+// ─── AI-powered product categorization ──────────────────────────────────────
+// Uses a reason block to auto-categorize products based on their name.
+reason categorize_product(name: string) -> string {
+    goal: "Categorize a product into a department"
+    constraints: [
+        "Return one of: electronics, clothing, food, books, home, sports, other",
+        "Be specific — laptops and phones are electronics, not other"
+    ]
+    examples: [
+        ("MacBook Pro 16 inch", "electronics"),
+        ("Running Shoes Nike Air", "sports"),
+        ("Organic Green Tea 100 bags", "food"),
+        ("Cotton T-Shirt Blue XL", "clothing"),
+        ("The Art of Programming", "books"),
+        ("Standing Desk Oak", "home"),
+        ("Wireless Mouse Logitech", "electronics")
+    ]
+    fallback: "other"
+}
+
+fn main() {
+    // Load environment configuration
+    env.load_dotenv()
+
+    // Connect to SQLite database — creates file if it doesn't exist
+    db.connect("sqlite://products.db")
+
+    // Run SQL migration files from the migrations/ directory.
+    // Files are executed in alphabetical order, tracked so they only run once.
+    db.migrate("migrations/")
+
+    // Seed initial data using db.execute for direct SQL statements
+    db.execute("INSERT OR IGNORE INTO products (id, name, price, stock, category, created_at) VALUES (1, 'Wireless Keyboard', 79.99, 150, 'electronics', '2026-01-15')")
+    db.execute("INSERT OR IGNORE INTO products (id, name, price, stock, category, created_at) VALUES (2, 'Ergonomic Chair', 349.99, 30, 'home', '2026-01-20')")
+    db.execute("INSERT OR IGNORE INTO products (id, name, price, stock, category, created_at) VALUES (3, 'Python Cookbook', 44.99, 200, 'books', '2026-02-01')")
+    db.execute("INSERT OR IGNORE INTO products (id, name, price, stock, category, created_at) VALUES (4, 'Running Shorts', 29.99, 500, 'sports', '2026-02-10')")
+    db.execute("INSERT OR IGNORE INTO products (id, name, price, stock, category, created_at) VALUES (5, 'Earl Grey Tea 50pk', 12.99, 1000, 'food', '2026-02-15')")
+
+    server := http.new(port: 8080)
+
+    // ─── GET / — API overview ───────────────────────────────────────────
+    server.get("/") => fn(req) -> Response {
+        Response.json({
+            service: "AID Product Store",
+            version: "1.0.0",
+            database: "SQLite",
+            endpoints: [
+                "GET    /products       — List all products",
+                "POST   /products       — Create a product",
+                "GET    /products/:id   — Get product by ID",
+                "PUT    /products/:id   — Update product",
+                "DELETE /products/:id   — Delete product",
+                "GET    /stats          — Aggregation statistics",
+                "POST   /categorize     — AI-categorize a product name"
+            ]
+        })
+    }
+
+    // ─── GET /products — List all products (READ) ───────────────────────
+    // db.query returns rows as JSON-ready objects with column names as keys.
+    server.get("/products") => fn(req) -> Response {
+        products := db.query("SELECT id, name, price, stock, category, created_at FROM products ORDER BY id")
+        Response.json({
+            products: products,
+            total: 5
+        })
+    }
+
+    // ─── POST /products — Create a new product (CREATE) ────────────────
+    // db.execute runs INSERT/UPDATE/DELETE statements.
+    server.post("/products") => fn(req) -> Response {
+        // Auto-categorize the product using AI
+        category := categorize_product(req.body.name)
+        db.execute("INSERT INTO products (name, price, stock, category, created_at) VALUES ('" + req.body.name + "', " + req.body.price + ", " + req.body.stock + ", '" + category + "', datetime('now'))")
+        Response.json({
+            message: "Product created",
+            category: category
+        })
+    }
+
+    // ─── GET /products/:id — Get single product (READ) ─────────────────
+    server.get("/products/:id") => fn(req) -> Response {
+        product := db.query("SELECT id, name, price, stock, category, created_at FROM products WHERE id = " + req.params.id)
+        Response.json({ product: product })
+    }
+
+    // ─── PUT /products/:id — Update product (UPDATE) ────────────────────
+    server.put("/products/:id") => fn(req) -> Response {
+        db.execute("UPDATE products SET price = " + req.body.price + " WHERE id = " + req.params.id)
+        Response.json({ message: "Product updated", id: req.params.id })
+    }
+
+    // ─── DELETE /products/:id — Delete product (DELETE) ─────────────────
+    server.delete("/products/:id") => fn(req) -> Response {
+        db.execute("DELETE FROM products WHERE id = " + req.params.id)
+        Response.json({ message: "Product deleted", id: req.params.id })
+    }
+
+    // ─── GET /stats — Aggregation queries ───────────────────────────────
+    // Shows how db.query handles GROUP BY, COUNT, SUM, etc.
+    server.get("/stats") => fn(req) -> Response {
+        by_category := db.query("SELECT category, COUNT(*) as count, SUM(stock) as total_stock, ROUND(AVG(price), 2) as avg_price FROM products GROUP BY category ORDER BY count DESC")
+        Response.json({
+            categories: by_category,
+            message: "Product statistics by category"
+        })
+    }
+
+    // ─── POST /categorize — AI categorization endpoint ──────────────────
+    server.post("/categorize") => fn(req) -> Response {
+        result := categorize_product(req.body.name)
+        Response.text(result)
+    }
+
+    server.start()
+}

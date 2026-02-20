@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            compiler/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('compiler/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        working-directory: compiler
+        run: cargo fmt -- --check
+
+      - name: Clippy (no warnings)
+        working-directory: compiler
+        run: cargo clippy -- -D warnings
+
+      - name: Run tests
+        working-directory: compiler
+        run: cargo test
+
+      - name: Build compiler (release)
+        working-directory: compiler
+        run: cargo build --release
+
+      - name: Build all examples
+        run: |
+          AID=./compiler/target/release/aid
+          for f in examples/*.aid; do
+            echo "::group::Building $f"
+            $AID build "$f" --no-docs || true
+            echo "::endgroup::"
+          done

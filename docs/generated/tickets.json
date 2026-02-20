@@ -1,0 +1,127 @@
+{
+  "compiler_version": "0.1.0",
+  "entities": [],
+  "evolve_blocks": [
+    {
+      "approve": true,
+      "min_accuracy": 0.95,
+      "retrain_every": 500,
+      "target": "classify_ticket",
+      "track": true
+    },
+    {
+      "approve": null,
+      "min_accuracy": 0.9,
+      "retrain_every": 1000,
+      "target": "detect_priority",
+      "track": true
+    }
+  ],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "main",
+      "params": [],
+      "return_type": "None"
+    }
+  ],
+  "generated_at": "1771603933",
+  "module": "tickets",
+  "reason_blocks": [
+    {
+      "constraints": [
+        "Return one of: billing, technical, general, urgent",
+        "If uncertain, prefer general",
+        "Tickets mentioning outage or down are always urgent"
+      ],
+      "examples": [
+        {
+          "input": "My card was charged twice",
+          "output": "billing"
+        },
+        {
+          "input": "Server is down",
+          "output": "urgent"
+        },
+        {
+          "input": "How do I reset my password",
+          "output": "technical"
+        },
+        {
+          "input": "What integrations do you support",
+          "output": "general"
+        }
+      ],
+      "fallback": "general",
+      "goal": "Classify a customer support ticket into a category",
+      "name": "classify_ticket",
+      "params": [
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "return_type": "String"
+    },
+    {
+      "constraints": [
+        "Return one of: low, normal, high, critical",
+        "Mentions of data loss or security are always critical"
+      ],
+      "examples": [
+        {
+          "input": "Minor typo in docs",
+          "output": "low"
+        },
+        {
+          "input": "Cannot upload files",
+          "output": "normal"
+        },
+        {
+          "input": "Production API returning 500s",
+          "output": "high"
+        },
+        {
+          "input": "Customer data may be exposed",
+          "output": "critical"
+        }
+      ],
+      "fallback": "normal",
+      "goal": "Detect the priority level of a support ticket",
+      "name": "detect_priority",
+      "params": [
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ],
+      "return_type": "String"
+    }
+  ],
+  "routes": [
+    {
+      "handler": "handle_root",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "handler": "handle_health",
+      "method": "GET",
+      "path": "/health"
+    },
+    {
+      "handler": "handle_classify",
+      "method": "POST",
+      "path": "/classify"
+    },
+    {
+      "handler": "handle_priority",
+      "method": "POST",
+      "path": "/priority"
+    }
+  ],
+  "server_port": 8080,
+  "std_modules": [
+    "std.http"
+  ]
+}

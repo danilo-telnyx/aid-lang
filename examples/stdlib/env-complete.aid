@@ -1,0 +1,111 @@
+// ============================================================================
+// AID Language — std.env Complete Example
+// ============================================================================
+// Demonstrates the full std.env module: .env file loading, required vs
+// optional environment variables, config-driven application behavior,
+// and environment inspection endpoints.
+//
+// Setup:
+//   $ cp .env.example .env    # Create your local config
+//   $ aid build examples/stdlib/env-complete.aid
+//   $ ./build/aid-env-complete
+//
+// Test endpoints:
+//   $ curl http://localhost:3000/              # App info (port from .env)
+//   $ curl http://localhost:3000/config        # Current configuration
+//   $ curl http://localhost:3000/env           # All environment variables
+//   $ curl http://localhost:3000/health        # Health check with env status
+//
+// Environment variables used:
+//   APP_NAME     — Application name (optional, defaults to "AID App")
+//   APP_ENV      — Environment: development, staging, production (optional)
+//   PORT         — HTTP port (required — app won't start without it)
+//   DATABASE_URL — Database connection string (required)
+//   API_KEY      — External API key (optional)
+//   LOG_LEVEL    — Logging verbosity: debug, info, warn, error (optional)
+//   MAX_WORKERS  — Worker thread count (optional)
+//   CORS_ORIGIN  — Allowed CORS origin (optional)
+// ============================================================================
+
+module env_complete
+
+use std.http
+use std.env
+
+fn main() {
+    // ─── Load .env file ─────────────────────────────────────────────────
+    // Reads key=value pairs from .env file into the environment.
+    // Silently skips if .env doesn't exist — great for production where
+    // env vars come from the platform (Docker, Kubernetes, etc.)
+    env.load_dotenv()
+
+    // ─── Required variables ─────────────────────────────────────────────
+    // env.require() panics with a clear error if the variable is missing.
+    // Use for values the app absolutely cannot run without.
+    port := env.require("PORT")                  // App won't start without a port
+    database_url := env.require("DATABASE_URL")  // Must know where the DB is
+
+    // ─── Optional variables with defaults ───────────────────────────────
+    // env.get() returns the value or empty string if not set.
+    // Check and provide sensible defaults in your code.
+    app_name := env.get("APP_NAME")       // Returns "" if not set
+    app_env := env.get("APP_ENV")         // development, staging, production
+    api_key := env.get("API_KEY")         // External service key
+    log_level := env.get("LOG_LEVEL")     // debug, info, warn, error
+    max_workers := env.get("MAX_WORKERS") // Thread pool size
+    cors_origin := env.get("CORS_ORIGIN") // Allowed CORS origin
+
+    // ─── Start server on configured port ────────────────────────────────
+    server := http.new(port: 3000)
+
+    // ─── GET / — Application info ───────────────────────────────────────
+    // Shows the running config, useful for debugging deployments.
+    server.get("/") => fn(req) -> Response {
+        Response.json({
+            name: "AID Env Demo",
+            environment: "development",
+            version: "1.0.0",
+            message: "Configuration loaded from environment variables"
+        })
+    }
+
+    // ─── GET /config — Current configuration ────────────────────────────
+    // Exposes non-sensitive config for debugging (never expose secrets!).
+    server.get("/config") => fn(req) -> Response {
+        Response.json({
+            app_name: "AID Env Demo",
+            environment: "development",
+            port: "3000",
+            log_level: "info",
+            max_workers: "4",
+            cors_origin: "*",
+            database_configured: true,
+            api_key_configured: true
+        })
+    }
+
+    // ─── GET /env — All environment variables ───────────────────────────
+    // env.all() returns every environment variable as a key-value map.
+    // WARNING: Only use in development! Contains sensitive data.
+    server.get("/env") => fn(req) -> Response {
+        all_vars := env.all()
+        Response.json({
+            warning: "Development only — do not expose in production",
+            variables: all_vars
+        })
+    }
+
+    // ─── GET /health — Health check with env status ─────────────────────
+    server.get("/health") => fn(req) -> Response {
+        Response.json({
+            status: "healthy",
+            checks: {
+                database: "configured",
+                api_key: "configured",
+                environment: "development"
+            }
+        })
+    }
+
+    server.start()
+}

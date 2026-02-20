@@ -1,0 +1,41 @@
+{
+  "compiler_version": "0.1.0",
+  "entities": [],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "main",
+      "params": [],
+      "return_type": "None"
+    }
+  ],
+  "generated_at": "1771603933",
+  "module": "html-demo",
+  "routes": [
+    {
+      "handler": "handle_root",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "handler": "handle_items",
+      "method": "GET",
+      "path": "/items"
+    },
+    {
+      "handler": "handle_oldpage",
+      "method": "GET",
+      "path": "/old-page"
+    },
+    {
+      "handler": "handle_static",
+      "method": "GET",
+      "path": "/static"
+    }
+  ],
+  "server_port": 8080,
+  "std_modules": [
+    "std.http",
+    "std.html"
+  ]
+}

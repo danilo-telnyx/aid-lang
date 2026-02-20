@@ -30,7 +30,7 @@
 | ⭐ 2 | `evolve` blocks | ✅ V1 done | Self-improving code — runtime telemetry feeds next build |
 | ⭐ 3 | `intent` routing | ✅ V1 done | AI-native HTTP routing — Cortex builds route tables at compile time |
 | ⭐ 4 | `contract` validation | ✅ V1 done | Natural language rules → type-safe validators, /validate endpoint |
-| ⭐ 5 | Auto-documentation | ✅ Basic | Generated at every build, includes reason block explanations |
+| ⭐ 5 | Auto-documentation | ✅ Full | `aid docs` generates HTML/JSON/MD with routes, reason blocks, contracts, evolve stats, dependency graphs. CI/CD auto-deploys on push. |
 
 ## Project Structure
 
@@ -92,6 +92,10 @@
 - `contract` blocks → English rules parsed into type-safe validators, /validate endpoint
 - Auto-docs generated at every build
 - Full CLI: build, run, new, clean, docs, fmt, lint, cortex, rollback, evolve
+- `aid docs` generates HTML/JSON/Markdown: routes, entities, reason blocks, contracts, evolve stats, module deps
+- `aid docs --all` processes all .aid files; `--format json` for CI/tooling
+- CI/CD: `.github/workflows/ci.yml` (test/lint/build), `.github/workflows/docs.yml` (auto-doc + GitHub Pages deploy)
+- Pre-push hook: `scripts/pre-push-docs.sh` auto-generates and commits docs
 - `aid new <name>` with `--template api|minimal` — project scaffolding
 - Intent routing: compiler auto-discovers handlers by naming convention, builds route tables, /api/routes endpoint
 - WASM compilation: `aid build --target wasm` → wasm32-wasip1 binaries

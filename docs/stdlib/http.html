@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>std.http — AID Language</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .api-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .api-card h4 { color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 1rem; margin-bottom: 8px; }
+    .api-card .sig { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; margin-bottom: 12px; }
+    .api-card p { color: var(--text-dim); font-size: 0.9rem; }
+    .rust-output { border-left: 3px solid var(--gold); }
+    .rust-label { display: inline-block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); background: rgba(255,179,71,0.1); padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="../" class="logo">AID <span class="version-badge">v0.2.0</span></a>
+    <div class="links">
+      <a href="./">Stdlib</a>
+      <a href="../examples/">Examples</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" style="padding:140px 0 60px">
+  <div class="container fade-in">
+    <div class="hero-badge">Standard Library</div>
+    <h1 style="font-size:3rem">🌐 std.http</h1>
+    <p class="tagline">HTTP server, routing, and JSON responses — powered by Axum.</p>
+    <p class="desc">The foundation of every AID application. Create servers, define routes with handlers, and return JSON or text responses — all in a few lines.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>API Reference</h2>
+    <p class="section-sub">Every function in the std.http module.</p>
+
+    <div class="api-card">
+      <h4>http.new(port: int) → Server</h4>
+      <p>Creates a new HTTP server bound to the specified port. Does not start listening until <code>server.start()</code> is called.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)</code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>server.get(path: string) => fn(req) → Response</h4>
+      <p>Registers a GET route handler. The handler receives a request object and must return a Response.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>server.<span class="fn-name">get</span>(<span class="str">"/users"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+    Response.<span class="fn-name">json</span>({ users: [] })
+}</code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>server.post(path: string) => fn(req) → Response</h4>
+      <p>Registers a POST route handler. Request body is available via <code>req.body</code>.</p>
+      <pre class="code-inline" style="margin-top:12px"><code>server.<span class="fn-name">post</span>(<span class="str">"/users"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+    Response.<span class="fn-name">json</span>({ created: req.body.name })
+}</code></pre>
+    </div>
+
+    <div class="api-card">
+      <h4>server.put(path: string) => fn(req) → Response</h4>
+      <p>Registers a PUT route handler for updates.</p>
+    </div>
+
+    <div class="api-card">
+      <h4>server.delete(path: string) => fn(req) → Response</h4>
+      <p>Registers a DELETE route handler for resource removal.</p>
+    </div>
+
+    <div class="api-card">
+      <h4>Response.json(data: object) → Response</h4>
+      <p>Returns a JSON response with <code>Content-Type: application/json</code>. Accepts any AID object/map literal.</p>
+    </div>
+
+    <div class="api-card">
+      <h4>Response.text(body: string) → Response</h4>
+      <p>Returns a plain text response with <code>Content-Type: text/plain</code>.</p>
+    </div>
+
+    <div class="api-card">
+      <h4>server.start()</h4>
+      <p>Starts the HTTP server and begins listening for connections. Blocks the main thread.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Complete Example</h2>
+    <p class="section-sub">A full HTTP API with multiple routes and response types.</p>
+    <pre class="code-block active" style="display:block;border-radius:12px"><code><span class="kw">module</span> main
+
+<span class="kw">use</span> std.http
+
+<span class="kw">fn</span> <span class="fn-name">main</span>() {
+    server <span class="op">:=</span> http.<span class="fn-name">new</span>(port: <span class="num">8080</span>)
+
+    server.<span class="fn-name">get</span>(<span class="str">"/"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        Response.<span class="fn-name">json</span>({
+            service: <span class="str">"My API"</span>,
+            version: <span class="str">"1.0.0"</span>
+        })
+    }
+
+    server.<span class="fn-name">get</span>(<span class="str">"/health"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        Response.<span class="fn-name">json</span>({ status: <span class="str">"ok"</span> })
+    }
+
+    server.<span class="fn-name">post</span>(<span class="str">"/echo"</span>) <span class="op">=></span> <span class="kw">fn</span>(req) <span class="op">-></span> <span class="type">Response</span> {
+        Response.<span class="fn-name">text</span>(req.body)
+    }
+
+    server.<span class="fn-name">start</span>()
+}</code></pre>
+  </div>
+</section>
+
+<section>
+  <div class="container fade-in">
+    <h2>Generated Rust</h2>
+    <p class="section-sub">What the AID compiler produces — an Axum application.</p>
+    <span class="rust-label">Transpiled Output (simplified)</span>
+    <pre class="code-block active rust-output" style="display:block;border-radius:12px"><code><span class="kw">use</span> axum::{Router, routing::{get, post}, Json, response::IntoResponse};
+<span class="kw">use</span> serde_json::json;
+
+<span class="cmt">// server.get("/") => handler</span>
+<span class="kw">async fn</span> <span class="fn-name">handle_root</span>() <span class="op">-></span> impl IntoResponse {
+    Json(json!({
+        <span class="str">"service"</span>: <span class="str">"My API"</span>,
+        <span class="str">"version"</span>: <span class="str">"1.0.0"</span>
+    }))
+}
+
+<span class="cmt">// http.new(port: 8080) + server.start()</span>
+<span class="kw">#[tokio::main]</span>
+<span class="kw">async fn</span> <span class="fn-name">main</span>() {
+    <span class="kw">let</span> app = Router::new()
+        .route(<span class="str">"/"</span>, get(handle_root))
+        .route(<span class="str">"/health"</span>, get(handle_health))
+        .route(<span class="str">"/echo"</span>, post(handle_echo));
+
+    <span class="kw">let</span> listener = tokio::net::TcpListener::bind(<span class="str">"0.0.0.0:8080"</span>)
+        .<span class="kw">await</span>.unwrap();
+    axum::serve(listener, app).<span class="kw">await</span>.unwrap();
+}</code></pre>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="./">← Stdlib</a>
+      <a href="../">Home</a>
+      <a href="https://github.com/danilo-telnyx/aid-lang">GitHub</a>
+    </div>
+    <p>AID — Auto-Intelligent Development Language © 2026</p>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

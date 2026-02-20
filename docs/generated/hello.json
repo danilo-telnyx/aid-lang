@@ -1,0 +1,30 @@
+{
+  "compiler_version": "0.1.0",
+  "entities": [],
+  "functions": [
+    {
+      "is_async": false,
+      "name": "main",
+      "params": [],
+      "return_type": "None"
+    }
+  ],
+  "generated_at": "1771603933",
+  "module": "hello",
+  "routes": [
+    {
+      "handler": "handle_root",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "handler": "handle_health",
+      "method": "GET",
+      "path": "/health"
+    }
+  ],
+  "server_port": 8080,
+  "std_modules": [
+    "std.http"
+  ]
+}

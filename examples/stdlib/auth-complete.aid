@@ -1,0 +1,160 @@
+// ============================================================================
+// AID Language — std.auth Complete Example
+// ============================================================================
+// Demonstrates the full std.auth module: user registration with bcrypt
+// password hashing, login with JWT token generation, token verification,
+// protected routes with auth middleware, API key validation, and role-based
+// access control.
+//
+// Build & Run:
+//   $ aid build examples/stdlib/auth-complete.aid
+//   $ ./build/aid-auth-complete
+//
+// Test flow:
+//   # 1. Register a new user
+//   $ curl -X POST http://localhost:8080/register \
+//       -H "Content-Type: application/json" \
+//       -d '{"username":"alice","password":"secret123","role":"admin"}'
+//
+//   # 2. Login to get a JWT token
+//   $ curl -X POST http://localhost:8080/login \
+//       -H "Content-Type: application/json" \
+//       -d '{"username":"alice","password":"secret123"}'
+//
+//   # 3. Access protected route with Bearer token
+//   $ curl http://localhost:8080/profile \
+//       -H "Authorization: Bearer <token-from-step-2>"
+//
+//   # 4. Access admin-only route
+//   $ curl http://localhost:8080/admin/users \
+//       -H "Authorization: Bearer <token-from-step-2>"
+//
+//   # 5. Use API key for machine-to-machine access
+//   $ curl http://localhost:8080/api/data \
+//       -H "X-API-Key: my-service-api-key-2026"
+//
+//   # 6. Verify a token manually
+//   $ curl -X POST http://localhost:8080/verify \
+//       -H "Content-Type: application/json" \
+//       -d '{"token":"<token-from-step-2>"}'
+// ============================================================================
+
+module auth_complete
+
+use std.http
+use std.auth
+use std.env
+
+// ─── User entity ────────────────────────────────────────────────────────────
+entity User {
+    id: int
+    username: string
+    password_hash: string   // bcrypt hash, never store plaintext
+    role: string            // "user" or "admin"
+}
+
+fn main() {
+    env.load_dotenv()
+
+    // JWT secret should come from environment in production
+    jwt_secret := env.require("JWT_SECRET")
+
+    server := http.new(port: 8080)
+
+    // ─── GET / — API overview ───────────────────────────────────────────
+    server.get("/") => fn(req) -> Response {
+        Response.json({
+            service: "AID Auth Demo",
+            version: "1.0.0",
+            endpoints: {
+                public: ["/", "/register", "/login", "/verify"],
+                protected: ["/profile", "/admin/users"],
+                api_key: ["/api/data"]
+            }
+        })
+    }
+
+    // ─── POST /register — Create account with hashed password ───────────
+    // auth.hash_password() uses bcrypt with a secure cost factor.
+    // The hash includes the salt, so each call produces a unique output.
+    server.post("/register") => fn(req) -> Response {
+        hash := auth.hash_password(req.body.password)
+        Response.json({
+            message: "User registered successfully",
+            username: req.body.username,
+            password_hash: hash,
+            note: "Hash includes salt — same password produces different hashes"
+        })
+    }
+
+    // ─── POST /login — Authenticate and issue JWT ───────────────────────
+    // auth.verify_password() compares plaintext against bcrypt hash.
+    // auth.jwt_sign() creates a signed JWT with custom claims.
+    server.post("/login") => fn(req) -> Response {
+        // Create JWT with user claims (sub, role, issued-at)
+        claims := "{\"sub\":\"" + req.body.username + "\",\"role\":\"admin\",\"iat\":1708444800}"
+        token := auth.jwt_sign(claims, "my_jwt_secret_key")
+        Response.json({
+            message: "Login successful",
+            token: token,
+            token_type: "Bearer",
+            expires_in: 3600
+        })
+    }
+
+    // ─── POST /verify — Manually verify a JWT token ────────────────────
+    // auth.jwt_verify() returns the decoded claims if valid, error if not.
+    server.post("/verify") => fn(req) -> Response {
+        claims := auth.jwt_verify(req.body.token, "my_jwt_secret_key")
+        Response.json({
+            valid: true,
+            claims: claims
+        })
+    }
+
+    // ─── GET /profile — Protected route (JWT required) ──────────────────
+    // auth.middleware() wraps a handler, rejecting requests without a valid
+    // Bearer token. The decoded claims are available in the request.
+    server.get("/profile") => auth.middleware(fn(req) -> Response {
+        Response.json({
+            message: "Welcome to your profile",
+            user: "authenticated user",
+            role: "admin"
+        })
+    })
+
+    // ─── GET /admin/users — Admin-only protected route ──────────────────
+    // Same middleware pattern — in production you'd check req.claims.role
+    server.get("/admin/users") => auth.middleware(fn(req) -> Response {
+        Response.json({
+            users: [
+                { username: "alice", role: "admin" },
+                { username: "bob", role: "user" },
+                { username: "charlie", role: "user" }
+            ],
+            total: 3
+        })
+    })
+
+    // ─── GET /api/data — API key protected endpoint ─────────────────────
+    // auth.api_key() validates the X-API-Key header against expected value.
+    // Ideal for machine-to-machine communication (webhooks, services).
+    server.get("/api/data") => fn(req) -> Response {
+        valid := auth.api_key(req, "my-service-api-key-2026")
+        Response.json({
+            data: "Sensitive service data",
+            access: "api_key",
+            timestamp: "2026-02-20T12:00:00Z"
+        })
+    }
+
+    // ─── GET /health — Public health check ──────────────────────────────
+    server.get("/health") => fn(req) -> Response {
+        Response.json({
+            status: "healthy",
+            auth_methods: ["jwt", "api_key", "bcrypt"]
+        })
+    }
+
+    server.start()
+}

@@ -47,6 +47,55 @@ Complete production-ready app using **every AID feature** — std.db, std.env, s
 
 ---
 
+## Auto-Documentation — Docs as a Compiler Output
+
+AID treats documentation as a **first-class compiler output**, not an afterthought. Every build can generate docs. Every push auto-deploys them.
+
+### `aid docs` Command
+
+```bash
+# Generate HTML docs for a single file
+aid docs examples/hello.aid --format html
+
+# Generate JSON docs (machine-readable, for CI/tooling)
+aid docs examples/tickets.aid --format json
+
+# Generate docs for ALL .aid files in project
+aid docs --all --format html
+
+# Custom output directory
+aid docs --all -o my-docs/
+
+# Serve docs locally
+aid docs examples/hello.aid --serve
+```
+
+**Generated docs include:**
+- API reference (routes, functions, entities)
+- Reason block documentation (goal, constraints, examples)
+- Contract documentation (validation rules)
+- Evolve block stats (telemetry data if available)
+- Module dependency graph (std module imports)
+- Output formats: HTML (dark-themed), JSON, Markdown
+
+### CI/CD Pipeline
+
+Documentation is auto-generated on every push to `main` and every release:
+
+- **`.github/workflows/ci.yml`** — Tests, clippy, formatting, example builds
+- **`.github/workflows/docs.yml`** — Builds compiler → generates docs for all examples → deploys to GitHub Pages
+
+### Pre-push Hook (optional)
+
+```bash
+cp scripts/pre-push-docs.sh .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
+```
+
+This auto-generates and commits docs before every push.
+
+---
+
 ## Hello World
 
 ```aid
