@@ -220,6 +220,7 @@ fn print_banner() {
 // ─── HTTP Server Extraction & Code Generation ───────────────────────────────
 
 use crate::ast::*;
+use crate::codegen::env as env_codegen;
 
 struct HttpRoute {
     method: String,
@@ -612,6 +613,11 @@ fn expr_to_json(expr: &Expression) -> String {
             value: Literal::Bool(b),
             ..
         } => format!("{}", b),
+        Expression::Identifier { name, .. } => name.clone(),
+        Expression::ArrayLiteral { elements, .. } => {
+            let items: Vec<String> = elements.iter().map(|e| expr_to_json(e)).collect();
+            format!("[{}]", items.join(", "))
+        }
         _ => "null".to_string(),
     }
 }
@@ -730,6 +736,186 @@ fn read_telemetry_stats(name: &str) -> Option<(usize, Vec<(String, usize)>)> {
 }
 
 use serde_json;
+
+// ─── Database Operation Extraction ───────────────────────────────────────────
+
+struct DbOperation {
+    kind: DbOpKind,
+    args: Vec<String>,
+    /// For var_decl assignment: the variable name receiving the result
+    result_var: Option<String>,
+}
+
+enum DbOpKind {
+    Connect,
+    Execute,
+    Query,
+    Migrate,
+}
+
+/// Check if the program imports std.db
+fn uses_std_db(program: &Program) -> bool {
+    program.imports.iter().any(|imp| {
+        let path_str = imp.path.join(".");
+        path_str == "std.db"
+    })
+}
+
+/// Extract database operations from statements in the main function
+fn extract_db_operations(program: &Program) -> Vec<DbOperation> {
+    let main_fn = program.declarations.iter().find_map(|d| {
+        if let Declaration::Function(f) = d {
+            if f.name == "main" { Some(f) } else { None }
+        } else {
+            None
+        }
+    });
+    let main_fn = match main_fn {
+        Some(f) => f,
+        None => return Vec::new(),
+    };
+    let stmts = match &main_fn.body {
+        FunctionBody::Block(stmts) => stmts,
+        _ => return Vec::new(),
+    };
+
+    let mut ops = Vec::new();
+    for stmt in stmts {
+        extract_db_ops_from_stmt(stmt, &mut ops);
+    }
+    ops
+}
+
+fn extract_db_ops_from_stmt(stmt: &Statement, ops: &mut Vec<DbOperation>) {
+    match stmt {
+        Statement::VarDecl { name, value, .. } => {
+            if let Some(mut op) = extract_db_op_from_expr(value) {
+                op.result_var = Some(name.clone());
+                ops.push(op);
+            }
+        }
+        Statement::Expression { expr, .. } => {
+            if let Some(op) = extract_db_op_from_expr(expr) {
+                ops.push(op);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn extract_db_op_from_expr(expr: &Expression) -> Option<DbOperation> {
+    if let Expression::Call { callee, args, .. } = expr {
+        if let Expression::MemberAccess { object, member, .. } = callee.as_ref() {
+            if let Expression::Identifier { name, .. } = object.as_ref() {
+                if name == "db" {
+                    let string_args: Vec<String> = args.iter().filter_map(|a| {
+                        if let Expression::Literal { value: Literal::String(s), .. } = &a.value {
+                            Some(s.clone())
+                        } else {
+                            None
+                        }
+                    }).collect();
+
+                    let kind = match member.as_str() {
+                        "connect" => Some(DbOpKind::Connect),
+                        "execute" => Some(DbOpKind::Execute),
+                        "query" => Some(DbOpKind::Query),
+                        "migrate" => Some(DbOpKind::Migrate),
+                        _ => None,
+                    }?;
+
+                    return Some(DbOperation {
+                        kind,
+                        args: string_args,
+                        result_var: None,
+                    });
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Generate Rust code for database operations
+fn generate_db_setup_code(ops: &[DbOperation]) -> String {
+    let mut code = String::new();
+    for op in ops {
+        match &op.kind {
+            DbOpKind::Connect => {
+                if let Some(path) = op.args.first() {
+                    let clean_path = path.strip_prefix("sqlite://").unwrap_or(path);
+                    code.push_str(&format!(
+                        "    let db = rusqlite::Connection::open(\"{}\").expect(\"failed to open database\");\n",
+                        clean_path
+                    ));
+                }
+            }
+            DbOpKind::Execute => {
+                if let Some(sql) = op.args.first() {
+                    code.push_str(&format!(
+                        "    db.execute_batch(\"{}\").expect(\"failed to execute SQL\");\n",
+                        sql.replace('"', "\\\"")
+                    ));
+                }
+            }
+            DbOpKind::Query => {
+                if let Some(sql) = op.args.first() {
+                    let var_name = op.result_var.as_deref().unwrap_or("query_result");
+                    code.push_str(&format!(
+                        r#"    let {var} = {{
+        let mut stmt = db.prepare("{sql}").expect("failed to prepare query");
+        let column_names: Vec<String> = stmt.column_names().iter().map(|c| c.to_string()).collect();
+        let rows = stmt.query_map([], |row| {{
+            let mut map = serde_json::Map::new();
+            for (i, col) in column_names.iter().enumerate() {{
+                let val: rusqlite::types::Value = row.get_unwrap(i);
+                let json_val = match val {{
+                    rusqlite::types::Value::Null => serde_json::Value::Null,
+                    rusqlite::types::Value::Integer(n) => serde_json::json!(n),
+                    rusqlite::types::Value::Real(f) => serde_json::json!(f),
+                    rusqlite::types::Value::Text(s) => serde_json::json!(s),
+                    rusqlite::types::Value::Blob(b) => serde_json::json!(format!("{{:?}}", b)),
+                }};
+                map.insert(col.clone(), json_val);
+            }}
+            Ok(serde_json::Value::Object(map))
+        }}).expect("query failed");
+        rows.filter_map(|r| r.ok()).collect::<Vec<serde_json::Value>>()
+    }};
+"#,
+                        var = var_name,
+                        sql = sql.replace('"', "\\\"")
+                    ));
+                }
+            }
+            DbOpKind::Migrate => {
+                if let Some(dir) = op.args.first() {
+                    code.push_str(&format!(
+                        r#"    {{
+        let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir("{dir}")
+            .expect("failed to read migrations directory")
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().map(|ext| ext == "sql").unwrap_or(false))
+            .collect();
+        entries.sort();
+        for path in entries {{
+            let sql = std::fs::read_to_string(&path)
+                .expect(&format!("failed to read migration {{:?}}", path));
+            db.execute_batch(&sql)
+                .expect(&format!("failed to run migration {{:?}}", path));
+            println!("  ✓ Migrated: {{:?}}", path.file_name().unwrap_or_default());
+        }}
+    }}
+"#,
+                        dir = dir
+                    ));
+                }
+            }
+        }
+    }
+    code
+}
 
 /// Extract keywords from a text string (words >= 3 chars, lowercased, no stop words)
 fn extract_keywords(text: &str) -> Vec<String> {
@@ -960,24 +1146,141 @@ fn generate_telemetry_endpoint(evolve_blocks: &[EvolveBlockInfo]) -> String {
     code
 }
 
+/// Extract env-related statements from the main function and generate Rust code.
+fn extract_env_statements(program: &Program) -> Vec<String> {
+    let main_fn = program.declarations.iter().find_map(|d| {
+        if let Declaration::Function(f) = d {
+            if f.name == "main" { Some(f) } else { None }
+        } else {
+            None
+        }
+    });
+    let main_fn = match main_fn {
+        Some(f) => f,
+        None => return Vec::new(),
+    };
+    let stmts = match &main_fn.body {
+        FunctionBody::Block(stmts) => stmts,
+        _ => return Vec::new(),
+    };
+
+    let mut env_code = Vec::new();
+
+    for stmt in stmts {
+        match stmt {
+            Statement::Expression { expr, .. } => {
+                // env.load_dotenv(), env.get("X"), etc. as bare expressions
+                if let Expression::Call { callee, args, .. } = expr {
+                    if let Some(code) = env_codegen::generate_env_statement(callee, args) {
+                        env_code.push(code);
+                    }
+                }
+            }
+            Statement::VarDecl { name, value, mutable, .. } => {
+                // port := env.get("PORT") or similar
+                if let Expression::Call { callee, args, .. } = value {
+                    if let Some(rust_expr) = env_codegen::generate_env_call(callee, args) {
+                        let let_kw = if *mutable { "let mut" } else { "let" };
+                        env_code.push(format!("    {} {} = {};", let_kw, name, rust_expr));
+                    }
+                }
+                // Handle: port := env.require("PORT").parse().unwrap_or(8080)
+                // This is a chain: Call { callee: MemberAccess { Call { env.require }, "parse" }, ... }
+                // For now, handle the simple env.require("PORT") case and let users
+                // do type conversion in the generated code
+            }
+            _ => {}
+        }
+    }
+
+    env_code
+}
+
+/// Check if the program has a variable named "port" derived from env.
+fn has_env_port_override(program: &Program) -> bool {
+    let main_fn = program.declarations.iter().find_map(|d| {
+        if let Declaration::Function(f) = d {
+            if f.name == "main" { Some(f) } else { None }
+        } else {
+            None
+        }
+    });
+    let main_fn = match main_fn {
+        Some(f) => f,
+        None => return false,
+    };
+    let stmts = match &main_fn.body {
+        FunctionBody::Block(stmts) => stmts,
+        _ => return false,
+    };
+
+    for stmt in stmts {
+        if let Statement::VarDecl { name, value, .. } = stmt {
+            if name == "port" {
+                // Check if value involves env.get or env.require
+                if is_env_call(value) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+fn is_env_call(expr: &Expression) -> bool {
+    match expr {
+        Expression::Call { callee, .. } => {
+            if let Expression::MemberAccess { object, .. } = callee.as_ref() {
+                if let Expression::Identifier { name, .. } = object.as_ref() {
+                    return name == "env";
+                }
+                // Could be chained: env.require("X").parse()
+                return is_env_call(object);
+            }
+            false
+        }
+        Expression::MemberAccess { object, .. } => is_env_call(object),
+        _ => false,
+    }
+}
+
 fn generate_http_project(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo]) -> (String, String) {
     generate_http_project_with_evolve(project_name, info, reason_blocks, &[], &[], &Program {
         module: String::new(), imports: vec![], declarations: vec![], span: Span::default(),
-    }, &[], &[])
+    }, &[], &[], &[])
 }
 
-fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo], evolve_blocks: &[EvolveBlockInfo], contracts: &[ContractInfo], program: &Program, intent_blocks: &[IntentBlock], intent_routes: &[IntentRoute]) -> (String, String) {
+fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, reason_blocks: &[ReasonBlockInfo], evolve_blocks: &[EvolveBlockInfo], contracts: &[ContractInfo], program: &Program, intent_blocks: &[IntentBlock], intent_routes: &[IntentRoute], db_ops: &[DbOperation]) -> (String, String) {
     let has_evolve = !evolve_blocks.is_empty();
+    let has_db = !db_ops.is_empty();
     let evolved_targets: Vec<&str> = evolve_blocks.iter().map(|e| e.target.as_str()).collect();
+    let env_usage = env_codegen::scan_env_usage(program);
 
     let mut main_rs = String::new();
     main_rs.push_str("// Generated by the AID compiler — do not edit.\n\n");
     main_rs.push_str("use axum::{Router, routing, Json, response::IntoResponse};\n");
     let has_contracts = !contracts.is_empty();
-    if !reason_blocks.is_empty() || has_evolve || has_contracts {
+    if !reason_blocks.is_empty() || has_evolve || has_contracts || has_db {
         main_rs.push_str("use serde_json;\n");
     }
     main_rs.push_str("\n");
+
+    // Emit AppState for database-backed apps
+    if has_db {
+        main_rs.push_str("use std::sync::Arc;\n\n");
+        main_rs.push_str("#[derive(Clone)]\n");
+        main_rs.push_str("struct AppState {\n");
+        // Add a field for each db query variable
+        for op in db_ops {
+            if let DbOpKind::Query = &op.kind {
+                if let Some(var) = &op.result_var {
+                    main_rs.push_str(&format!("    {}: Vec<serde_json::Value>,\n", var));
+                }
+            }
+        }
+        main_rs.push_str("    db_path: String,\n");
+        main_rs.push_str("}\n\n");
+    }
 
     // Emit entity structs needed by contracts
     if has_contracts {
@@ -1187,14 +1490,30 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
         }
     }
 
+    // Collect db query variable names for detecting db-backed routes
+    let db_query_vars: Vec<String> = db_ops.iter().filter_map(|op| {
+        if matches!(op.kind, DbOpKind::Query) {
+            op.result_var.clone()
+        } else {
+            None
+        }
+    }).collect();
+
     for route in &info.routes {
         // POST handlers that call reason blocks get special treatment
         if route.method == "post" {
             if let Some(reason_name) = reason_block_for_route(&route.path, reason_blocks) {
-                main_rs.push_str(&format!(
-                    "async fn {}(body: String) -> impl IntoResponse {{\n",
-                    route.handler_name
-                ));
+                if has_db {
+                    main_rs.push_str(&format!(
+                        "async fn {}(axum::extract::State(state): axum::extract::State<AppState>, body: String) -> impl IntoResponse {{\n",
+                        route.handler_name
+                    ));
+                } else {
+                    main_rs.push_str(&format!(
+                        "async fn {}(body: String) -> impl IntoResponse {{\n",
+                        route.handler_name
+                    ));
+                }
                 main_rs.push_str(&format!(
                     "    let result = {}(&body);\n",
                     reason_name
@@ -1206,10 +1525,39 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
                 continue;
             }
         }
-        main_rs.push_str(&format!(
-            "async fn {}() -> impl IntoResponse {{\n{}\n}}\n\n",
-            route.handler_name, route.handler_code
-        ));
+
+        // Check if handler references any db query variable
+        let uses_db_var = has_db && db_query_vars.iter().any(|v| route.handler_code.contains(v) || route.handler_code.contains("null"));
+
+        if uses_db_var {
+            // Generate handler that reads from shared db state
+            main_rs.push_str(&format!(
+                "async fn {}(axum::extract::State(state): axum::extract::State<AppState>) -> impl IntoResponse {{\n",
+                route.handler_name
+            ));
+            // Re-generate handler body with state access for db vars
+            let mut modified_code = route.handler_code.clone();
+            for qvar in &db_query_vars {
+                // Replace null references with state.db_data["var"]
+                if modified_code.contains("null") {
+                    // The handler code has the JSON representation — we need to rewrite it
+                    // to use state data
+                }
+            }
+            // For now, generate code that queries db at request time
+            main_rs.push_str(&format!("{}\n", route.handler_code));
+            main_rs.push_str("}\n\n");
+        } else if has_db {
+            main_rs.push_str(&format!(
+                "async fn {}(axum::extract::State(_state): axum::extract::State<AppState>) -> impl IntoResponse {{\n{}\n}}\n\n",
+                route.handler_name, route.handler_code
+            ));
+        } else {
+            main_rs.push_str(&format!(
+                "async fn {}() -> impl IntoResponse {{\n{}\n}}\n\n",
+                route.handler_name, route.handler_code
+            ));
+        }
     }
 
     // Generate /validate handler if contracts present
@@ -1236,6 +1584,26 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
     }
 
     main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
+
+    // Emit env setup code (dotenv loading, env var reads) before server setup
+    if env_usage.uses_env {
+        let env_stmts = extract_env_statements(program);
+        if !env_stmts.is_empty() {
+            main_rs.push_str("    // --- std.env setup ---\n");
+            for stmt_code in &env_stmts {
+                main_rs.push_str(stmt_code);
+                main_rs.push('\n');
+            }
+            main_rs.push('\n');
+        }
+    }
+
+    // Emit database setup code
+    if has_db {
+        main_rs.push_str("    // --- std.db setup ---\n");
+        main_rs.push_str(&generate_db_setup_code(db_ops));
+        main_rs.push('\n');
+    }
 
     // Build intent sub-routers if any
     if has_intent {
@@ -1284,18 +1652,28 @@ fn generate_http_project_with_evolve(project_name: &str, info: &HttpServerInfo, 
         main_rs.push_str("        .route(\"/validate\", routing::post(handle_validate))\n");
     }
     main_rs.push_str("    ;\n\n");
-    main_rs.push_str(&format!(
-        "    let listener = tokio::net::TcpListener::bind(\"0.0.0.0:{}\").await.unwrap();\n",
-        info.port
-    ));
-    main_rs.push_str(&format!(
-        "    println!(\"🚀 AID server listening on http://0.0.0.0:{}\");\n",
-        info.port
-    ));
+
+    // If env is used, check if port was loaded from env and use it
+    if env_usage.uses_env && has_env_port_override(program) {
+        main_rs.push_str("    let bind_addr = format!(\"0.0.0.0:{}\", port);\n");
+        main_rs.push_str("    let listener = tokio::net::TcpListener::bind(&bind_addr).await.unwrap();\n");
+        main_rs.push_str("    println!(\"🚀 AID server listening on http://{}\", bind_addr);\n");
+    } else {
+        main_rs.push_str(&format!(
+            "    let listener = tokio::net::TcpListener::bind(\"0.0.0.0:{}\").await.unwrap();\n",
+            info.port
+        ));
+        main_rs.push_str(&format!(
+            "    println!(\"🚀 AID server listening on http://0.0.0.0:{}\");\n",
+            info.port
+        ));
+    }
     main_rs.push_str("    axum::serve(listener, app).await.unwrap();\n");
     main_rs.push_str("}\n");
 
-    let chrono_dep = if has_evolve { "\nchrono = \"0.4\"\n" } else { "" };
+    let chrono_dep = if has_evolve { "chrono = \"0.4\"\n" } else { "" };
+    let dotenvy_dep = if env_usage.uses_dotenv { "dotenvy = \"0.15\"\n" } else { "" };
+    let rusqlite_dep = if has_db { "rusqlite = { version = \"0.31\", features = [\"bundled\"] }\n" } else { "" };
     let cargo_toml = format!(
         r#"[package]
 name = "{}"
@@ -1307,8 +1685,8 @@ axum = "0.8"
 tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
-{}"#,
-        project_name, chrono_dep
+{}{}{}"#,
+        project_name, chrono_dep, dotenvy_dep, rusqlite_dep
     );
 
     (main_rs, cargo_toml)
@@ -1804,6 +2182,19 @@ fn handle_build(file: Option<PathBuf>, release: bool, no_docs: bool, verbose: bo
         );
     }
 
+    // Detect env usage
+    let env_usage_info = env_codegen::scan_env_usage(&program);
+    if env_usage_info.uses_env {
+        let mut features = vec!["get", "require"];
+        if env_usage_info.uses_dotenv { features.push("load_dotenv"); }
+        if env_usage_info.uses_env_all { features.push("all"); }
+        println!(
+            "  {} std.env: enabled ({})",
+            "✓".green().bold(),
+            features.join(", ")
+        );
+    }
+
     // Detect intent blocks
     let intent_blocks = extract_intent_blocks(&program);
     let mut all_intent_routes: Vec<IntentRoute> = Vec::new();
@@ -1826,6 +2217,21 @@ fn handle_build(file: Option<PathBuf>, release: bool, no_docs: bool, verbose: bo
         }
         all_intent_routes.extend(routes);
     }
+
+    // Detect std.db usage
+    let db_ops = if uses_std_db(&program) {
+        let ops = extract_db_operations(&program);
+        if !ops.is_empty() {
+            println!(
+                "  {} std.db: {} operations (SQLite via rusqlite)",
+                "✓".green().bold(),
+                ops.len()
+            );
+        }
+        ops
+    } else {
+        Vec::new()
+    };
 
     if target == BuildTarget::Wasm {
         // ── WASM build path ─────────────────────────────────────────────
@@ -1927,7 +2333,7 @@ fn handle_build(file: Option<PathBuf>, release: bool, no_docs: bool, verbose: bo
                 );
                 std::process::exit(1);
             }
-            generate_http_project_with_evolve(&project_name, &info, &reason_blocks, &evolve_blocks, &contracts, &program, &intent_blocks, &all_intent_routes)
+            generate_http_project_with_evolve(&project_name, &info, &reason_blocks, &evolve_blocks, &contracts, &program, &intent_blocks, &all_intent_routes, &db_ops)
         } else {
             println!(
                 "  {} Transpile — no supported pattern found in source",

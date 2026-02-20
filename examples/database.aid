@@ -1,0 +1,67 @@
+module database
+
+use std.http
+use std.db
+
+entity Ticket {
+    id: int
+    title: string
+    status: string
+    priority: string
+}
+
+reason classify_ticket(text: string) -> string {
+    goal: "Classify support tickets into categories"
+    constraints: [
+        "Tickets mentioning crash or error or bug are always bug",
+        "Tickets mentioning slow or performance or latency are always performance",
+        "Return one of: bug, feature, performance, question"
+    ]
+    examples: [
+        ("App crashes on login", "bug"),
+        ("Add dark mode", "feature"),
+        ("Page loads slowly", "performance"),
+        ("How do I reset password?", "question"),
+        ("Server error 500", "bug"),
+        ("Request for API docs", "feature"),
+        ("Database queries are slow", "performance")
+    ]
+    fallback: "question"
+}
+
+fn main() {
+    db.connect("sqlite://tickets.db")
+
+    db.execute("CREATE TABLE IF NOT EXISTS tickets (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, status TEXT DEFAULT 'open', priority TEXT DEFAULT 'medium')")
+
+    db.execute("INSERT OR IGNORE INTO tickets (id, title, status, priority) VALUES (1, 'App crashes on login', 'open', 'high')")
+    db.execute("INSERT OR IGNORE INTO tickets (id, title, status, priority) VALUES (2, 'Add dark mode support', 'open', 'medium')")
+    db.execute("INSERT OR IGNORE INTO tickets (id, title, status, priority) VALUES (3, 'Dashboard loads slowly', 'open', 'high')")
+    db.execute("INSERT OR IGNORE INTO tickets (id, title, status, priority) VALUES (4, 'How to export data?', 'open', 'low')")
+    db.execute("INSERT OR IGNORE INTO tickets (id, title, status, priority) VALUES (5, 'Error 500 on checkout', 'open', 'critical')")
+
+    tickets := db.query("SELECT id, title, status, priority FROM tickets")
+
+    server := http.new(port: 8080)
+
+    server.get("/") => fn(req) -> Response {
+        Response.json({
+            service: "AID Ticket System",
+            version: "1.0",
+            endpoints: ["/tickets", "/classify"]
+        })
+    }
+
+    server.get("/tickets") => fn(req) -> Response {
+        Response.json({
+            tickets: tickets,
+            count: 5
+        })
+    }
+
+    server.post("/classify") => fn(req) -> Response {
+        Response.json({
+            result: classify_ticket(req.body)
+        })
+    }
+}

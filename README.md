@@ -137,6 +137,7 @@ The compiler reads the English rules and generates type-safe validators. No boil
 | 📄 **Auto-Documentation** | Docs generated at every build | ✅ Working |
 | 🎯 **Intent Routing** | Compiler discovers handlers, builds route tables | ✅ Working |
 | ⚡ **WASM Target** | Compile to WebAssembly, deploy anywhere | ✅ Working |
+| 🌍 **std.env** | Environment variables, .env files, config-driven servers | ✅ Working |
 | 🔒 **Local Cortex** | AI runs locally — no cloud, no data leaves your machine | ✅ Architecture |
 
 ---
@@ -226,6 +227,7 @@ cd compiler && cargo build --release
 | Contract Validation | Natural language validation rules | [`examples/contracts.aid`](examples/contracts.aid) |
 | Intent Routing | Auto-discovered routes, /api/routes endpoint | [`examples/intent.aid`](examples/intent.aid) |
 | WASM Module | WASM compilation target | [`examples/wasm-module.aid`](examples/wasm-module.aid) |
+| Env Demo | std.env, .env loading, config-driven server | [`examples/env-demo.aid`](examples/env-demo.aid) |
 
 ---
 

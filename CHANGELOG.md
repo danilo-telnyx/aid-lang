@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.2.0 — 2026-02-20
+
+### 🌍 std.env Module
+
+#### New Features
+- **`use std.env`** — import the environment module
+- **`env.get("KEY")`** — read env var as `Option<String>` (returns `None` if unset)
+- **`env.require("KEY")`** — read env var as `String` (panics if missing)
+- **`env.load_dotenv()`** — load `.env` file using `dotenvy` crate
+- **`env.all()`** — get all env vars as `HashMap<String, String>`
+- Config-driven HTTP server: port from env var overrides default
+- New codegen module: `compiler/src/codegen/env.rs` with 6 unit tests
+- New example: `examples/env-demo.aid` — .env loading + config-driven server
+
+#### Dependencies
+- `dotenvy = "0.15"` added automatically when `env.load_dotenv()` is used
+
+---
+
 ## v0.1.0 — 2026-02-19
 
 ### 🎉 Initial Release — All Roadmap Features Complete

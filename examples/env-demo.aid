@@ -1,0 +1,40 @@
+// AID Language — std.env Demo
+// Shows .env file loading, environment variable access,
+// and config-driven HTTP server setup.
+
+module env_demo
+
+use std.http
+use std.env
+
+fn main() {
+    // Load .env file (if present)
+    env.load_dotenv()
+
+    // Read config from environment
+    app_name := env.get("APP_NAME")
+    port := env.require("PORT")
+    api_key := env.get("API_KEY")
+
+    server := http.new(port: 8080)
+
+    server.get("/") => fn(req) -> Response {
+        Response.json({
+            message: "AID env-demo running",
+            app_name: "env-demo"
+        })
+    }
+
+    server.get("/config") => fn(req) -> Response {
+        Response.json({
+            status: "ok",
+            message: "Config loaded from environment"
+        })
+    }
+
+    server.get("/health") => fn(req) -> Response {
+        Response.json({
+            status: "healthy"
+        })
+    }
+}
